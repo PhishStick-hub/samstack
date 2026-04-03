@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: samstack hello_world test fixture
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: HelloWorldFunction
+      CodeUri: src/
+      Handler: handler.handler
+      Runtime: python3.13
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_ENDPOINT_URL: ""
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          TEST_BUCKET: samstack-integration-test
+      Events:
+        GetHello:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+        PostHello:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: post
