@@ -1,0 +1,74 @@
+name: Publish to TestPyPI
+
+on:
+  push:
+    tags:
+      - "v*.*.*[abcdr]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to publish (e.g., v0.2.0.dev1, v0.2.0rc1)'
+        required: true
+        type: string
+
+jobs:
+  validate:
+    name: Validate Tag
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Validate tag input
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+|b[0-9]+|rc[0-9]+)$ ]]; then
+            echo "ERROR: '$TAG' is not a valid pre-release tag (expected format: v0.2.0.dev1, v0.2.0a1, v0.2.0b1, v0.2.0rc1)"
+            exit 1
+          fi
+          echo "Tag '$TAG' is valid."
+
+  ci:
+    uses: ./.github/workflows/_ci.yml
+    needs: [validate]
+    if: always() && (needs.validate.result == 'success' || needs.validate.result == 'skipped')
+    with:
+      ref: ${{ github.event.inputs.tag || github.ref }}
+      run-build: true
+
+  publish:
+    name: Build and Publish to TestPyPI
+    runs-on: ubuntu-latest
+    needs: [ci]
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/samstack/
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to TestPyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
+        run: uv publish --publish-url https://test.pypi.org/legacy/
+
+      - name: Print TestPyPI link
+        run: |
+          VERSION=$(grep -Po 'version = "\K[^"]*' pyproject.toml)
+          echo "Published to TestPyPI: https://test.pypi.org/project/samstack/$VERSION/"

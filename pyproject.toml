@@ -7,6 +7,21 @@ name = "samstack"
 version = "0.1.0"
 description = "Pytest fixtures for testing AWS SAM Lambdas locally with LocalStack"
 readme = "README.md"
+authors = [
+    { name = "Ivan Shcherbenko", email = "ivan_shcherbenko@outlook.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["aws", "sam", "localstack", "pytest", "lambda", "testing", "fixtures"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
 requires-python = ">=3.13"
 dependencies = [
     "testcontainers[localstack]>=4.10.0",
@@ -14,6 +29,11 @@ dependencies = [
     "boto3>=1.35.0",
     "pytest>=8.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/PhishStick-hub/samstack"
+Repository = "https://github.com/PhishStick-hub/samstack"
+Issues = "https://github.com/PhishStick-hub/samstack/issues"
 
 [project.entry-points."pytest11"]
 samstack = "samstack.plugin"
