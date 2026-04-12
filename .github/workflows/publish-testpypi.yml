@@ -39,17 +39,22 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
 
+      - name: Set dev version
+        run: |
+          BASE=$(grep -Po 'version = "\K[^"]*' pyproject.toml)
+          N=$(git rev-list HEAD --count)
+          DEV_VERSION="${BASE}.dev${N}"
+          sed -i "s/version = \"${BASE}\"/version = \"${DEV_VERSION}\"/" pyproject.toml
+          echo "DEV_VERSION=${DEV_VERSION}" >> $GITHUB_ENV
+          echo "Building version: ${DEV_VERSION}"
+
       - name: Build package
         run: uv build
-
-      - name: Show version
-        run: |
-          VERSION=$(python -c "from samstack import __version__; print(__version__)" 2>/dev/null || \
-                    python -c "import importlib.metadata; print(importlib.metadata.version('samstack'))")
-          echo "Building version: $VERSION"
-          echo "TestPyPI: https://test.pypi.org/project/samstack/$VERSION/"
 
       - name: Publish to TestPyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
         run: uv publish --publish-url https://test.pypi.org/legacy/
+
+      - name: Print TestPyPI link
+        run: echo "Published to https://test.pypi.org/project/samstack/${{ env.DEV_VERSION }}/"
