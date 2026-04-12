@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/PhishStick-hub/samstack/compare/v0.1.1...v0.1.2) (2026-04-12)
+
+
+### Documentation
+
+* update CONTRIBUTING with commit type warning, correct tag pattern, pipeline diagram ([23ee6d2](https://github.com/PhishStick-hub/samstack/commit/23ee6d27a9534a7f1bb0cae32e01204af098bdc9))
+
 ## [0.1.1](https://github.com/PhishStick-hub/samstack/compare/v0.1.0...v0.1.1) (2026-04-12)
 
 
