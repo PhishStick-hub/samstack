@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/PhishStick-hub/samstack/compare/v0.1.0...v0.1.1) (2026-04-12)
+
+
+### Bug Fixes
+
+* **ci:** correct tag glob pattern for publish-pypi trigger ([0396116](https://github.com/PhishStick-hub/samstack/commit/0396116ed1fb1e2dbdcce598709ae674a8f1ff2c))
+
 ## 0.1.0 (2026-04-12)
 
 
