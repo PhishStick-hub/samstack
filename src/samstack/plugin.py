@@ -16,6 +16,7 @@ import pytest
 
 from samstack.fixtures.localstack import (
     docker_network,
+    docker_network_name,
     localstack_container,
     localstack_endpoint,
 )
@@ -45,6 +46,7 @@ from samstack.settings import SamStackSettings, load_settings
 
 __all__ = [
     "docker_network",
+    "docker_network_name",
     "dynamodb_client",
     "dynamodb_table",
     "dynamodb_table_factory",

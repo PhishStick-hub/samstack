@@ -14,9 +14,18 @@ from samstack.settings import SamStackSettings
 
 
 @pytest.fixture(scope="session")
-def docker_network() -> Iterator[str]:
+def docker_network_name() -> str:
+    """Return the name for the shared Docker bridge network.
+
+    Override this fixture to use a fixed or externally-managed network name.
+    """
+    return f"samstack-{uuid4().hex[:8]}"
+
+
+@pytest.fixture(scope="session")
+def docker_network(docker_network_name: str) -> Iterator[str]:
     """Create a Docker bridge network shared by LocalStack and SAM containers."""
-    name = f"samstack-{uuid4().hex[:8]}"
+    name = docker_network_name
     client = docker_sdk.from_env()
     try:
         network = client.networks.create(name, driver="bridge")
