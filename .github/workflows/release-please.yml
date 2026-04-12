@@ -21,3 +21,10 @@ jobs:
         id: release
         with:
           release-type: python
+
+  publish:
+    name: Publish to PyPI
+    needs: [release-please]
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/publish-pypi.yml
+    secrets: inherit
