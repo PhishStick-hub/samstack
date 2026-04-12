@@ -68,6 +68,10 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 | `feat!` or `BREAKING CHANGE` | major `0.1.0 → 1.0.0` | `feat(api)!: rename sam_endpoint fixture` |
 | `chore`, `docs`, `ci`, `test`, `refactor` | no bump | `chore(deps): update boto3` |
 
+> **Important**: use `fix:` only for user-facing bug fixes. Internal changes (CI config,
+> tooling, tests) should use `chore:` or `ci:` — otherwise Release Please opens an
+> unnecessary release PR for every CI tweak.
+
 ---
 
 ## Running Tests
@@ -189,7 +193,7 @@ When you're satisfied, open a PR from your `release/**` branch to `main` as norm
 |----------|---------|---------|
 | `ci.yml` | Push to `main`, PRs to `main` | Quality checks + tests |
 | `publish-testpypi.yml` | Push to `release/**` | Publish dev build to TestPyPI |
-| `publish-pypi.yml` | Tag `v[0-9]+.[0-9]+.[0-9]+` | Publish stable release to PyPI |
+| `publish-pypi.yml` | Tag `v[0-9]*.[0-9]*.[0-9]*` | Publish stable release to PyPI |
 | `release-please.yml` | Push to `main` | Auto-open Release PR, create tag on merge |
 
 ### Pipeline Detail
@@ -211,11 +215,17 @@ When you're satisfied, open a PR from your `release/**` branch to `main` as norm
                     │       → uv publish (TestPyPI)         │
                     └──────────────────────────────────────┘
 
-  Merge             ┌──────────────────────────────────────┐
-  Release PR ─────► │  release-please.yml                  │
-                    │  └── Creates tag v0.1.0               │
+                    ┌──────────────────────────────────────┐
+  Any push    ┌───► │  ci.yml  (quality + tests)           │
+  to main ────┤     └──────────────────────────────────────┘
+              │     ┌──────────────────────────────────────┐
+              └───► │  release-please.yml                  │
+                    │  • on feat/fix PR merge:              │
+                    │    opens/updates Release PR           │
+                    │  • on Release PR merge:               │
+                    │    creates tag + GitHub Release       │
                     └──────────────┬───────────────────────┘
-                                   │ tag push
+                                   │ tag push (v*.*.*)
                                    ▼
                     ┌──────────────────────────────────────┐
                     │  publish-pypi.yml                    │
@@ -224,6 +234,9 @@ When you're satisfied, open a PR from your `release/**` branch to `main` as norm
                     │       → uv publish (PyPI)             │
                     └──────────────────────────────────────┘
 ```
+
+> Every push to `main` always fires **both** `ci.yml` and `release-please.yml` in parallel.
+> This is expected — CI validates the code, Release Please tracks commits for the next release.
 
 ### Version Strategy
 
