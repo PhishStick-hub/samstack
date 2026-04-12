@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# hatch-vcs generated version file
+src/samstack/_version.py
