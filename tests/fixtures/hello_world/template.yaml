@@ -15,8 +15,6 @@ Resources:
       CodeUri: src/
       Handler: handler.handler
       Runtime: python3.13
-      Architectures:
-        - arm64
       Environment:
         Variables:
           AWS_ENDPOINT_URL: ""
