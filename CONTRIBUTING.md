@@ -141,8 +141,8 @@ Maintainer reviews and merges the Release PR
         ▼
 Release Please creates git tag + GitHub Release automatically
         │
-        ▼
-publish-pypi.yml triggers → package published to PyPI
+        ▼ (chained directly — GITHUB_TOKEN tags don't fire push: tags)
+publish-pypi.yml → package published to PyPI
 ```
 
 No manual tagging. The only human action is **merging the Release PR**.
