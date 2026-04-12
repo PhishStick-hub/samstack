@@ -3,11 +3,13 @@ name: Publish to TestPyPI
 on:
   push:
     tags:
-      - "v*.*.*[abcdr]*"
+      - "v*.*.*a*"
+      - "v*.*.*b*"
+      - "v*.*.*rc*"
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to publish (e.g., v0.2.0.dev1, v0.2.0rc1)'
+        description: 'Git tag to publish (e.g., v0.2.0a1, v0.2.0b1, v0.2.0rc1)'
         required: true
         type: string
 
@@ -20,8 +22,8 @@ jobs:
       - name: Validate tag input
         run: |
           TAG="${{ github.event.inputs.tag }}"
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+|b[0-9]+|rc[0-9]+)$ ]]; then
-            echo "ERROR: '$TAG' is not a valid pre-release tag (expected format: v0.2.0.dev1, v0.2.0a1, v0.2.0b1, v0.2.0rc1)"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)$ ]]; then
+            echo "ERROR: '$TAG' is not a valid pre-release tag (expected format: v0.2.0a1, v0.2.0b1, v0.2.0rc1)"
             exit 1
           fi
           echo "Tag '$TAG' is valid."
@@ -69,5 +71,5 @@ jobs:
 
       - name: Print TestPyPI link
         run: |
-          VERSION=$(grep -Po 'version = "\K[^"]*' pyproject.toml)
+          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
           echo "Published to TestPyPI: https://test.pypi.org/project/samstack/$VERSION/"

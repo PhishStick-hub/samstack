@@ -33,19 +33,6 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Validate version
-        run: |
-          VERSION=$(grep -Po 'version = "\K[^"]*' pyproject.toml)
-          echo "Version in pyproject.toml: $VERSION"
-
-          if [[ $VERSION =~ (dev|alpha|beta|rc) ]]; then
-            echo "ERROR: Cannot publish pre-release version '$VERSION' to production PyPI"
-            echo "Please remove dev/alpha/beta/rc suffix from version in pyproject.toml"
-            exit 1
-          fi
-
-          echo "Version validated: $VERSION"
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:

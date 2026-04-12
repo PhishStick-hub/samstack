@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.26"]
+requires = ["hatchling>=1.26", "hatch-vcs>=0.5.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "samstack"
-version = "0.1.0.dev1"
+dynamic = ["version"]
 description = "Pytest fixtures for testing AWS SAM Lambdas locally with LocalStack"
 readme = "README.md"
 authors = [
@@ -38,6 +38,12 @@ Issues = "https://github.com/PhishStick-hub/samstack/issues"
 [project.entry-points."pytest11"]
 samstack = "samstack.plugin"
 
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/samstack/_version.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/samstack"]
 
@@ -54,4 +60,5 @@ dev = [
     "ruff>=0.15.2",
     "ty>=0.0.18",
     "pytest-timeout>=2.4.0",
+    "hatch-vcs>=0.5.0",
 ]
