@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/PhishStick-hub/samstack/compare/v0.1.2...v0.1.3) (2026-04-12)
+
+
+### Documentation
+
+* **contributing:** note why publish is chained, not tag-triggered ([a2a630f](https://github.com/PhishStick-hub/samstack/commit/a2a630fe6705866ec8d767643e816b4167071e05))
+
 ## [0.1.2](https://github.com/PhishStick-hub/samstack/compare/v0.1.1...v0.1.2) (2026-04-12)
 
 
