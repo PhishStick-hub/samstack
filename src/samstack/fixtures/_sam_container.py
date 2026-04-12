@@ -76,7 +76,7 @@ def _run_sam_service(
         settings_extra_args=settings_extra_args,
         fixture_extra_args=fixture_extra_args,
     )
-    command = ["sam", "local", subcommand, *args]
+    command = ["sam", "local", subcommand, "--template", settings.template, *args]
 
     container = create_sam_container(
         settings=settings,
