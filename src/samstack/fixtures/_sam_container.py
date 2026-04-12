@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import platform
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -11,6 +12,11 @@ from samstack._process import stream_logs_to_file, wait_for_http, wait_for_port
 from samstack.settings import SamStackSettings
 
 DOCKER_SOCKET = "/var/run/docker.sock"
+
+
+def _is_ci() -> bool:
+    """Return True when running inside a CI environment (GitHub Actions, GitLab CI, etc.)."""
+    return bool(os.environ.get("CI"))
 
 
 def _extra_hosts() -> dict[str, str]:
@@ -29,8 +35,9 @@ def build_sam_args(
     fixture_extra_args: list[str],
 ) -> list[str]:
     """Return the CLI arg list shared by start-api and start-lambda."""
+    skip_pull: list[str] = [] if _is_ci() else ["--skip-pull-image"]
     return [
-        "--skip-pull-image",
+        *skip_pull,
         "--warm-containers",
         warm_containers,
         "--host",

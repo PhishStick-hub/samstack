@@ -68,7 +68,14 @@ def sam_build(
     # created by SAM via the Docker socket can also mount it — Docker Desktop
     # only shares /Users (and similar host paths), not paths inside containers.
     host_path = str(samstack_settings.project_root)
-    build_cmd = ["sam", "build", "--skip-pull-image", "--template", samstack_settings.template, *samstack_settings.build_args]
+    build_cmd = [
+        "sam",
+        "build",
+        "--skip-pull-image",
+        "--template",
+        samstack_settings.template,
+        *samstack_settings.build_args,
+    ]
     volumes = {
         host_path: {"bind": host_path, "mode": "rw"},
         DOCKER_SOCKET: {"bind": DOCKER_SOCKET, "mode": "rw"},
