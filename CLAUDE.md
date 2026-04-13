@@ -76,17 +76,17 @@ lambda_client                → samstack_settings, sam_lambda_endpoint
 
 # Resource fixtures (all depend on localstack_endpoint + samstack_settings)
 s3_client                    → localstack_endpoint, samstack_settings
-s3_bucket_factory            → s3_client
+make_s3_bucket            → s3_client
 s3_bucket          [func]    → s3_client
 dynamodb_client              → localstack_endpoint, samstack_settings
 _dynamodb_resource           → localstack_endpoint, samstack_settings
-dynamodb_table_factory       → dynamodb_client, _dynamodb_resource
+make_dynamodb_table       → dynamodb_client, _dynamodb_resource
 dynamodb_table     [func]    → dynamodb_client, _dynamodb_resource
 sqs_client                   → localstack_endpoint, samstack_settings
-sqs_queue_factory            → sqs_client
+make_sqs_queue            → sqs_client
 sqs_queue          [func]    → sqs_client
 sns_client                   → localstack_endpoint, samstack_settings
-sns_topic_factory            → sns_client
+make_sns_topic            → sns_client
 sns_topic          [func]    → sns_client
 ```
 

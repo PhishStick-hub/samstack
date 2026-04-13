@@ -9,43 +9,43 @@ from collections.abc import Callable
 from samstack.resources.sqs import SqsQueue
 
 
-class TestSqsQueueFactory:
-    def test_factory_creates_real_queue(
-        self, sqs_queue_factory: Callable[[str], SqsQueue]
+class TestMakeSqsQueue:
+    def test_creates_real_queue(
+        self, make_sqs_queue: Callable[[str], SqsQueue]
     ) -> None:
-        queue = sqs_queue_factory("jobs")
+        queue = make_sqs_queue("jobs")
         msg_id = queue.send("hello")
         assert isinstance(msg_id, str)
         assert len(msg_id) > 0
 
-    def test_factory_uuid_isolation(
-        self, sqs_queue_factory: Callable[[str], SqsQueue]
+    def test_uuid_isolation(
+        self, make_sqs_queue: Callable[[str], SqsQueue]
     ) -> None:
-        q1 = sqs_queue_factory("events")
-        q2 = sqs_queue_factory("events")
+        q1 = make_sqs_queue("events")
+        q2 = make_sqs_queue("events")
         assert q1.url != q2.url
 
-    def test_factory_send_receive_str(
-        self, sqs_queue_factory: Callable[[str], SqsQueue]
+    def test_send_receive_str(
+        self, make_sqs_queue: Callable[[str], SqsQueue]
     ) -> None:
-        queue = sqs_queue_factory("str-test")
+        queue = make_sqs_queue("str-test")
         queue.send("ping")
         messages = queue.receive(max_messages=1, wait_seconds=1)
         assert len(messages) == 1
         assert messages[0]["Body"] == "ping"
 
-    def test_factory_send_receive_dict(
-        self, sqs_queue_factory: Callable[[str], SqsQueue]
+    def test_send_receive_dict(
+        self, make_sqs_queue: Callable[[str], SqsQueue]
     ) -> None:
-        queue = sqs_queue_factory("dict-test")
+        queue = make_sqs_queue("dict-test")
         payload = {"action": "create", "id": 42}
         queue.send(payload)
         messages = queue.receive(max_messages=1, wait_seconds=1)
         assert len(messages) == 1
         assert json.loads(messages[0]["Body"]) == payload
 
-    def test_factory_purge(self, sqs_queue_factory: Callable[[str], SqsQueue]) -> None:
-        queue = sqs_queue_factory("purge-test")
+    def test_purge(self, make_sqs_queue: Callable[[str], SqsQueue]) -> None:
+        queue = make_sqs_queue("purge-test")
         queue.send("msg1")
         queue.send("msg2")
         queue.purge()

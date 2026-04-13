@@ -8,42 +8,42 @@ from collections.abc import Callable
 from samstack.resources.s3 import S3Bucket
 
 
-class TestS3BucketFactory:
-    def test_factory_creates_real_bucket(
-        self, s3_bucket_factory: Callable[[str], S3Bucket]
+class TestMakeS3Bucket:
+    def test_creates_real_bucket(
+        self, make_s3_bucket: Callable[[str], S3Bucket]
     ) -> None:
-        bucket = s3_bucket_factory("my-data")
+        bucket = make_s3_bucket("my-data")
         bucket.put("probe.txt", b"ok")
         assert bucket.get("probe.txt") == b"ok"
 
-    def test_factory_uuid_isolation(
-        self, s3_bucket_factory: Callable[[str], S3Bucket]
+    def test_uuid_isolation(
+        self, make_s3_bucket: Callable[[str], S3Bucket]
     ) -> None:
-        b1 = s3_bucket_factory("shared")
-        b2 = s3_bucket_factory("shared")
+        b1 = make_s3_bucket("shared")
+        b2 = make_s3_bucket("shared")
         assert b1.name != b2.name
 
-    def test_factory_put_get_json_roundtrip(
-        self, s3_bucket_factory: Callable[[str], S3Bucket]
+    def test_put_get_json_roundtrip(
+        self, make_s3_bucket: Callable[[str], S3Bucket]
     ) -> None:
-        bucket = s3_bucket_factory("json-data")
+        bucket = make_s3_bucket("json-data")
         bucket.put("record.json", {"hello": "world", "count": 42})
         assert bucket.get_json("record.json") == {"hello": "world", "count": 42}
 
-    def test_factory_list_and_delete(
-        self, s3_bucket_factory: Callable[[str], S3Bucket]
+    def test_list_and_delete(
+        self, make_s3_bucket: Callable[[str], S3Bucket]
     ) -> None:
-        bucket = s3_bucket_factory("list-test")
+        bucket = make_s3_bucket("list-test")
         bucket.put("a.txt", b"a")
         bucket.put("b.txt", b"b")
         assert set(bucket.list_keys()) == {"a.txt", "b.txt"}
         bucket.delete("a.txt")
         assert bucket.list_keys() == ["b.txt"]
 
-    def test_factory_list_with_prefix(
-        self, s3_bucket_factory: Callable[[str], S3Bucket]
+    def test_list_with_prefix(
+        self, make_s3_bucket: Callable[[str], S3Bucket]
     ) -> None:
-        bucket = s3_bucket_factory("prefix-test")
+        bucket = make_s3_bucket("prefix-test")
         bucket.put("uploads/x.json", b"x")
         bucket.put("other/y.txt", b"y")
         assert bucket.list_keys(prefix="uploads/") == ["uploads/x.json"]

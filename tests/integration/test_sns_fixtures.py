@@ -10,44 +10,44 @@ from samstack.resources.sns import SnsTopic
 from samstack.resources.sqs import SqsQueue
 
 
-class TestSnsTopicFactory:
-    def test_factory_creates_real_topic(
-        self, sns_topic_factory: Callable[[str], SnsTopic]
+class TestMakeSnsTopic:
+    def test_creates_real_topic(
+        self, make_sns_topic: Callable[[str], SnsTopic]
     ) -> None:
-        topic = sns_topic_factory("notifications")
+        topic = make_sns_topic("notifications")
         msg_id = topic.publish("hello")
         assert isinstance(msg_id, str)
         assert len(msg_id) > 0
 
-    def test_factory_uuid_isolation(
-        self, sns_topic_factory: Callable[[str], SnsTopic]
+    def test_uuid_isolation(
+        self, make_sns_topic: Callable[[str], SnsTopic]
     ) -> None:
-        t1 = sns_topic_factory("alerts")
-        t2 = sns_topic_factory("alerts")
+        t1 = make_sns_topic("alerts")
+        t2 = make_sns_topic("alerts")
         assert t1.arn != t2.arn
 
-    def test_factory_publish_dict(
-        self, sns_topic_factory: Callable[[str], SnsTopic]
+    def test_publish_dict(
+        self, make_sns_topic: Callable[[str], SnsTopic]
     ) -> None:
-        topic = sns_topic_factory("dict-events")
+        topic = make_sns_topic("dict-events")
         payload = {"event": "user.created", "id": 42}
         msg_id = topic.publish(payload)
         assert isinstance(msg_id, str)
 
-    def test_factory_publish_with_subject(
-        self, sns_topic_factory: Callable[[str], SnsTopic]
+    def test_publish_with_subject(
+        self, make_sns_topic: Callable[[str], SnsTopic]
     ) -> None:
-        topic = sns_topic_factory("subjects")
+        topic = make_sns_topic("subjects")
         msg_id = topic.publish("critical alert", subject="Urgent")
         assert isinstance(msg_id, str)
 
-    def test_factory_subscribe_sqs_and_receive(
+    def test_subscribe_sqs_and_receive(
         self,
-        sns_topic_factory: Callable[[str], SnsTopic],
-        sqs_queue_factory: Callable[[str], SqsQueue],
+        make_sns_topic: Callable[[str], SnsTopic],
+        make_sqs_queue: Callable[[str], SqsQueue],
     ) -> None:
-        topic = sns_topic_factory("fanout")
-        queue = sqs_queue_factory("fanout-inbox")
+        topic = make_sns_topic("fanout")
+        queue = make_sqs_queue("fanout-inbox")
 
         queue_attrs = queue.client.get_queue_attributes(
             QueueUrl=queue.url, AttributeNames=["QueueArn"]

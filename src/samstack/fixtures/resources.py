@@ -64,7 +64,7 @@ def s3_client(
 
 
 @pytest.fixture(scope="session")
-def s3_bucket_factory(
+def make_s3_bucket(
     s3_client: S3Client,
 ) -> Iterator[Callable[[str], S3Bucket]]:
     """
@@ -75,8 +75,8 @@ def s3_bucket_factory(
 
     Usage::
 
-        def test_something(s3_bucket_factory):
-            bucket = s3_bucket_factory("my-data")
+        def test_something(make_s3_bucket):
+            bucket = make_s3_bucket("my-data")
             bucket.put("key.json", {"value": 1})
     """
     created: list[S3Bucket] = []
@@ -175,7 +175,7 @@ def _create_dynamo_table(
 
 
 @pytest.fixture(scope="session")
-def dynamodb_table_factory(
+def make_dynamodb_table(
     dynamodb_client: DynamoDBClient,
     _dynamodb_resource: DynamoDBServiceResource,
 ) -> Iterator[Callable[[str, dict[str, str]], DynamoTable]]:
@@ -192,8 +192,8 @@ def dynamodb_table_factory(
 
     Usage::
 
-        def test_something(dynamodb_table_factory):
-            table = dynamodb_table_factory("orders", {"order_id": "S"})
+        def test_something(make_dynamodb_table):
+            table = make_dynamodb_table("orders", {"order_id": "S"})
             table.put_item({"order_id": "1", "total": 99})
     """
     created: list[str] = []
@@ -254,7 +254,7 @@ def sqs_client(
 
 
 @pytest.fixture(scope="session")
-def sqs_queue_factory(
+def make_sqs_queue(
     sqs_client: SQSClient,
 ) -> Iterator[Callable[[str], SqsQueue]]:
     """
@@ -264,8 +264,8 @@ def sqs_queue_factory(
 
     Usage::
 
-        def test_something(sqs_queue_factory):
-            queue = sqs_queue_factory("jobs")
+        def test_something(make_sqs_queue):
+            queue = make_sqs_queue("jobs")
             queue.send({"task": "process", "id": 1})
     """
     created: list[SqsQueue] = []
@@ -325,7 +325,7 @@ def sns_client(
 
 
 @pytest.fixture(scope="session")
-def sns_topic_factory(
+def make_sns_topic(
     sns_client: SNSClient,
 ) -> Iterator[Callable[[str], SnsTopic]]:
     """
@@ -335,9 +335,9 @@ def sns_topic_factory(
 
     Usage::
 
-        def test_something(sns_topic_factory, sqs_queue_factory):
-            topic = sns_topic_factory("notifications")
-            queue = sqs_queue_factory("inbox")
+        def test_something(make_sns_topic, make_sqs_queue):
+            topic = make_sns_topic("notifications")
+            queue = make_sqs_queue("inbox")
             topic.subscribe_sqs(queue_arn)
             topic.publish({"event": "created"})
     """
