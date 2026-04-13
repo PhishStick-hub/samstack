@@ -16,9 +16,7 @@ class TestMakeS3Bucket:
         bucket.put("probe.txt", b"ok")
         assert bucket.get("probe.txt") == b"ok"
 
-    def test_uuid_isolation(
-        self, make_s3_bucket: Callable[[str], S3Bucket]
-    ) -> None:
+    def test_uuid_isolation(self, make_s3_bucket: Callable[[str], S3Bucket]) -> None:
         b1 = make_s3_bucket("shared")
         b2 = make_s3_bucket("shared")
         assert b1.name != b2.name
@@ -30,9 +28,7 @@ class TestMakeS3Bucket:
         bucket.put("record.json", {"hello": "world", "count": 42})
         assert bucket.get_json("record.json") == {"hello": "world", "count": 42}
 
-    def test_list_and_delete(
-        self, make_s3_bucket: Callable[[str], S3Bucket]
-    ) -> None:
+    def test_list_and_delete(self, make_s3_bucket: Callable[[str], S3Bucket]) -> None:
         bucket = make_s3_bucket("list-test")
         bucket.put("a.txt", b"a")
         bucket.put("b.txt", b"b")
@@ -40,9 +36,7 @@ class TestMakeS3Bucket:
         bucket.delete("a.txt")
         assert bucket.list_keys() == ["b.txt"]
 
-    def test_list_with_prefix(
-        self, make_s3_bucket: Callable[[str], S3Bucket]
-    ) -> None:
+    def test_list_with_prefix(self, make_s3_bucket: Callable[[str], S3Bucket]) -> None:
         bucket = make_s3_bucket("prefix-test")
         bucket.put("uploads/x.json", b"x")
         bucket.put("other/y.txt", b"y")

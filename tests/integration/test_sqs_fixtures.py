@@ -18,25 +18,19 @@ class TestMakeSqsQueue:
         assert isinstance(msg_id, str)
         assert len(msg_id) > 0
 
-    def test_uuid_isolation(
-        self, make_sqs_queue: Callable[[str], SqsQueue]
-    ) -> None:
+    def test_uuid_isolation(self, make_sqs_queue: Callable[[str], SqsQueue]) -> None:
         q1 = make_sqs_queue("events")
         q2 = make_sqs_queue("events")
         assert q1.url != q2.url
 
-    def test_send_receive_str(
-        self, make_sqs_queue: Callable[[str], SqsQueue]
-    ) -> None:
+    def test_send_receive_str(self, make_sqs_queue: Callable[[str], SqsQueue]) -> None:
         queue = make_sqs_queue("str-test")
         queue.send("ping")
         messages = queue.receive(max_messages=1, wait_seconds=1)
         assert len(messages) == 1
         assert messages[0]["Body"] == "ping"
 
-    def test_send_receive_dict(
-        self, make_sqs_queue: Callable[[str], SqsQueue]
-    ) -> None:
+    def test_send_receive_dict(self, make_sqs_queue: Callable[[str], SqsQueue]) -> None:
         queue = make_sqs_queue("dict-test")
         payload = {"action": "create", "id": 42}
         queue.send(payload)

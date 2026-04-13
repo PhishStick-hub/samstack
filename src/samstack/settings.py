@@ -5,7 +5,7 @@ import platform
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 
 def _detect_architecture() -> Literal["arm64", "x86_64"]:
@@ -58,7 +58,7 @@ def load_settings(project_root: Path) -> SamStackSettings:
             "Add it to configure samstack."
         )
 
-    cfg: dict = tool["samstack"]
+    cfg: dict[str, Any] = tool["samstack"]
 
     if not cfg.get("sam_image"):
         raise ValueError(

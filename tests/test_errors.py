@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from samstack._errors import (
     DockerNetworkError,
     LocalStackStartupError,

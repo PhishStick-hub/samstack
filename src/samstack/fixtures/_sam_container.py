@@ -30,7 +30,7 @@ def build_sam_args(
     port: int,
     env_vars_host_path: str,
     docker_network: str,
-    warm_containers: str,
+    warm_containers: Literal["LAZY", "EAGER"],
     settings_extra_args: list[str],
     fixture_extra_args: list[str],
 ) -> list[str]:
@@ -63,7 +63,7 @@ def _run_sam_service(
     docker_network: str,
     subcommand: Literal["start-api", "start-lambda"],
     port: int,
-    warm_containers: str,
+    warm_containers: Literal["LAZY", "EAGER"],
     settings_extra_args: list[str],
     fixture_extra_args: list[str],
     log_filename: str,

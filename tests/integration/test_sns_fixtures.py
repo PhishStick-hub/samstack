@@ -19,16 +19,12 @@ class TestMakeSnsTopic:
         assert isinstance(msg_id, str)
         assert len(msg_id) > 0
 
-    def test_uuid_isolation(
-        self, make_sns_topic: Callable[[str], SnsTopic]
-    ) -> None:
+    def test_uuid_isolation(self, make_sns_topic: Callable[[str], SnsTopic]) -> None:
         t1 = make_sns_topic("alerts")
         t2 = make_sns_topic("alerts")
         assert t1.arn != t2.arn
 
-    def test_publish_dict(
-        self, make_sns_topic: Callable[[str], SnsTopic]
-    ) -> None:
+    def test_publish_dict(self, make_sns_topic: Callable[[str], SnsTopic]) -> None:
         topic = make_sns_topic("dict-events")
         payload = {"event": "user.created", "id": 42}
         msg_id = topic.publish(payload)

@@ -1,5 +1,7 @@
 """sam build succeeds and produces .aws-sam/ build directory."""
 
+from __future__ import annotations
+
 from samstack.settings import SamStackSettings
 
 

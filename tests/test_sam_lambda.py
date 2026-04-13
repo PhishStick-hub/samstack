@@ -1,8 +1,12 @@
 """sam local start-lambda: direct Lambda invocation via boto3."""
 
-import json
+from __future__ import annotations
 
-from mypy_boto3_lambda import LambdaClient
+import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mypy_boto3_lambda import LambdaClient
 
 
 def test_invoke_hello_world_returns_200(lambda_client: LambdaClient) -> None:
