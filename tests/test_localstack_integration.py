@@ -1,9 +1,14 @@
 """Lambda interacts with LocalStack S3 via shared Docker network."""
 
+from __future__ import annotations
+
 import json
+from typing import TYPE_CHECKING
 
 import requests
-from mypy_boto3_s3 import S3Client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 def test_post_hello_writes_to_s3(

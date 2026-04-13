@@ -127,7 +127,7 @@ All SAM fixtures are `scope="session"` — Docker containers start once and are 
 
 Ready-to-use fixtures for S3, DynamoDB, SQS, and SNS. Each service provides:
 - a **session-scoped boto3 client** (`s3_client`, `dynamodb_client`, `sqs_client`, `sns_client`)
-- a **session-scoped factory** that creates uniquely-named resources and deletes them at the end of the session
+- a **session-scoped `make_*` fixture** that creates uniquely-named resources and deletes them at the end of the session
 - a **function-scoped convenience fixture** that creates one fresh resource per test and deletes it after
 
 All resources get a UUID suffix on creation to avoid collisions between parallel test runs.
@@ -135,16 +135,16 @@ All resources get a UUID suffix on creation to avoid collisions between parallel
 | Fixture | Scope | Type | Description |
 |---|---|---|---|
 | `s3_client` | session | `S3Client` | boto3 S3 client pointed at LocalStack |
-| `s3_bucket_factory` | session | `Callable[[str], S3Bucket]` | Factory — call with a base name, returns a new `S3Bucket` |
+| `make_s3_bucket` | session | `Callable[[str], S3Bucket]` | Call with a base name, returns a new `S3Bucket` |
 | `s3_bucket` | function | `S3Bucket` | Fresh bucket per test; deleted after |
 | `dynamodb_client` | session | `DynamoDBClient` | boto3 DynamoDB client pointed at LocalStack |
-| `dynamodb_table_factory` | session | `Callable[[str, dict[str, str]], DynamoTable]` | Factory — call with name + key schema dict, returns a new `DynamoTable` |
+| `make_dynamodb_table` | session | `Callable[[str, dict[str, str]], DynamoTable]` | Call with name + key schema dict, returns a new `DynamoTable` |
 | `dynamodb_table` | function | `DynamoTable` | Fresh table per test (key: `{"id": "S"}`); deleted after |
 | `sqs_client` | session | `SQSClient` | boto3 SQS client pointed at LocalStack |
-| `sqs_queue_factory` | session | `Callable[[str], SqsQueue]` | Factory — call with a base name, returns a new `SqsQueue` |
+| `make_sqs_queue` | session | `Callable[[str], SqsQueue]` | Call with a base name, returns a new `SqsQueue` |
 | `sqs_queue` | function | `SqsQueue` | Fresh queue per test; deleted after |
 | `sns_client` | session | `SNSClient` | boto3 SNS client pointed at LocalStack |
-| `sns_topic_factory` | session | `Callable[[str], SnsTopic]` | Factory — call with a base name, returns a new `SnsTopic` |
+| `make_sns_topic` | session | `Callable[[str], SnsTopic]` | Call with a base name, returns a new `SnsTopic` |
 | `sns_topic` | function | `SnsTopic` | Fresh topic per test; deleted after |
 
 #### Wrapper class APIs
@@ -292,10 +292,10 @@ import requests
 
 def test_post_creates_record(
     sam_api: str,
-    dynamodb_table_factory,
+    make_dynamodb_table,
     sam_env_vars,   # already injected; add your table name before containers start
 ) -> None:
-    table = dynamodb_table_factory("orders", {"id": "S"})
+    table = make_dynamodb_table("orders", {"id": "S"})
     response = requests.post(f"{sam_api}/items", json={"id": "abc", "name": "widget"})
     assert response.status_code == 201
     assert table.get_item({"id": "abc"})["name"] == "widget"
@@ -329,8 +329,8 @@ def sam_env_vars(sam_env_vars: dict) -> dict:
     return sam_env_vars
 
 @pytest.fixture(scope="session")
-def orders_table(dynamodb_table_factory) -> DynamoTable:
-    return dynamodb_table_factory("orders", {"id": "S"})
+def orders_table(make_dynamodb_table) -> DynamoTable:
+    return make_dynamodb_table("orders", {"id": "S"})
 ```
 
 When you need capabilities beyond the wrapper API, use `.client` to access the raw boto3 client:

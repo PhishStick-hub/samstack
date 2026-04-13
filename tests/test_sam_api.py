@@ -1,5 +1,7 @@
 """sam local start-api: HTTP requests via API Gateway."""
 
+from __future__ import annotations
+
 import requests
 
 
