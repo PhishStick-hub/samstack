@@ -5,12 +5,41 @@ from collections.abc import Iterator
 from uuid import uuid4
 
 import docker as docker_sdk
+import docker.models.containers
+import docker.models.networks
 import pytest
 from testcontainers.localstack import LocalStackContainer
 
 from samstack._errors import DockerNetworkError
 from samstack.fixtures._sam_container import DOCKER_SOCKET
 from samstack.settings import SamStackSettings
+
+
+# — Docker network ----------------------------------------------------------------
+
+
+def _stop_network_container(
+    network: docker_sdk.models.networks.Network,
+    container: docker_sdk.models.containers.Container,
+) -> None:
+    try:
+        container.stop(timeout=5)
+        container.remove(force=True)
+    except Exception:
+        network.disconnect(container, force=True)
+
+
+def _teardown_network(network: docker_sdk.models.networks.Network, name: str) -> None:
+    try:
+        network.reload()
+        for container in network.containers:
+            _stop_network_container(network, container)
+        network.remove()
+    except Exception as exc:
+        warnings.warn(
+            f"samstack: failed to clean up Docker network '{name}': {exc}",
+            stacklevel=1,
+        )
 
 
 @pytest.fixture(scope="session")
@@ -25,29 +54,40 @@ def docker_network_name() -> str:
 @pytest.fixture(scope="session")
 def docker_network(docker_network_name: str) -> Iterator[str]:
     """Create a Docker bridge network shared by LocalStack and SAM containers."""
-    name = docker_network_name
     client = docker_sdk.from_env()
     try:
-        network = client.networks.create(name, driver="bridge")
+        network = client.networks.create(docker_network_name, driver="bridge")
     except Exception as exc:
-        raise DockerNetworkError(name=name, reason=str(exc)) from exc
+        raise DockerNetworkError(name=docker_network_name, reason=str(exc)) from exc
     try:
-        yield name
+        yield docker_network_name
     finally:
-        try:
-            network.reload()
-            for container in network.containers:
-                try:
-                    container.stop(timeout=5)
-                    container.remove(force=True)
-                except Exception:
-                    network.disconnect(container, force=True)
-            network.remove()
-        except Exception as exc:
-            warnings.warn(
-                f"samstack: failed to clean up Docker network '{name}': {exc}",
-                stacklevel=1,
-            )
+        _teardown_network(network, docker_network_name)
+
+
+# — LocalStack container -------------------------------------------------------
+
+
+def _connect_container_to_network(
+    client: docker_sdk.DockerClient,
+    network_name: str,
+    container: LocalStackContainer,
+) -> None:
+    network = client.networks.get(network_name)
+    inner = container.get_wrapped_container()
+    assert inner is not None, "LocalStack container failed to start"
+    network.connect(inner.id, aliases=["localstack"])
+
+
+def _disconnect_container_from_network(
+    client: docker_sdk.DockerClient,
+    network_name: str,
+    container: LocalStackContainer,
+) -> None:
+    network = client.networks.get(network_name)
+    inner = container.get_wrapped_container()
+    if inner is not None:
+        network.disconnect(inner.id, force=True)
 
 
 @pytest.fixture(scope="session")
@@ -62,10 +102,7 @@ def localstack_container(
 
     client = docker_sdk.from_env()
     try:
-        network = client.networks.get(docker_network)
-        inner = container.get_wrapped_container()
-        assert inner is not None, "LocalStack container failed to start"
-        network.connect(inner.id, aliases=["localstack"])
+        _connect_container_to_network(client, docker_network, container)
     except Exception as exc:
         container.stop()
         raise DockerNetworkError(name=docker_network, reason=str(exc)) from exc
@@ -74,10 +111,7 @@ def localstack_container(
         yield container
     finally:
         try:
-            network = client.networks.get(docker_network)
-            inner = container.get_wrapped_container()
-            if inner is not None:
-                network.disconnect(inner.id, force=True)
+            _disconnect_container_from_network(client, docker_network, container)
         except Exception as exc:
             warnings.warn(
                 f"samstack: failed to disconnect LocalStack from network '{docker_network}': {exc}",
