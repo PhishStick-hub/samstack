@@ -1,0 +1,25 @@
+name: Update uv.lock
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  update-lockfile:
+    if: startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@v4
+      - run: uv lock
+      - name: Commit uv.lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git diff --cached --quiet || git commit -m "chore: update uv.lock" && git push

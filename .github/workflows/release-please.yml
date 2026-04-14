@@ -22,22 +22,6 @@ jobs:
         with:
           release-type: python
 
-  update-lockfile:
-    name: Update uv.lock
-    needs: [release-please]
-    if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uv lock
-      - name: Commit uv.lock
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add uv.lock
-          git diff --cached --quiet || git commit -m "chore: update uv.lock for ${{ needs.release-please.outputs.tag_name }}" && git push
-
   publish:
     name: Publish to PyPI
     needs: [release-please]
