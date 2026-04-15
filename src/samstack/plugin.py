@@ -21,8 +21,8 @@ from samstack.fixtures.localstack import (
     localstack_endpoint,
 )
 from samstack.fixtures.resources import (
-    _dynamodb_resource,  # noqa: F401 — internal fixture, must be registered for pytest discovery
     dynamodb_client,
+    dynamodb_resource,
     dynamodb_table,
     make_dynamodb_table,
     make_s3_bucket,
@@ -30,10 +30,12 @@ from samstack.fixtures.resources import (
     make_sqs_queue,
     s3_bucket,
     s3_client,
+    s3_resource,
     sns_client,
     sns_topic,
     sqs_client,
     sqs_queue,
+    sqs_resource,
 )
 from samstack.fixtures.sam_api import sam_api, sam_api_extra_args
 from samstack.fixtures.sam_build import sam_build, sam_env_vars
@@ -48,6 +50,7 @@ __all__ = [
     "docker_network",
     "docker_network_name",
     "dynamodb_client",
+    "dynamodb_resource",
     "dynamodb_table",
     "lambda_client",
     "localstack_container",
@@ -58,11 +61,13 @@ __all__ = [
     "make_sqs_queue",
     "s3_bucket",
     "s3_client",
+    "s3_resource",
     "sam_api",
     "sns_client",
     "sns_topic",
     "sqs_client",
     "sqs_queue",
+    "sqs_resource",
     "sam_api_extra_args",
     "sam_build",
     "sam_env_vars",

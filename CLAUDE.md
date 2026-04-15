@@ -45,11 +45,12 @@ uv run pytest tests/ -v --timeout=300
 
 ### LocalStack resource fixtures
 
-`src/samstack/fixtures/resources.py` provides 12 fixtures for S3, DynamoDB, SQS, and SNS. Each service has three fixtures:
+`src/samstack/fixtures/resources.py` provides 15 fixtures for S3, DynamoDB, SQS, and SNS. S3, DynamoDB, and SQS each have four fixtures; SNS has three (no boto3 resource API):
 
 - `{service}_client` — session-scoped boto3 low-level client pointed at LocalStack
-- `{service}_{resource}_factory` — session-scoped factory; call it with a name (and `keys` dict for DynamoDB) to get a wrapper instance with UUID suffix; all resources deleted at session teardown
-- `{service}_{resource}` — function-scoped convenience fixture; one fresh resource per test, deleted after
+- `{service}_resource` — session-scoped boto3 resource object (S3, DynamoDB, SQS only; SNS has no resource API)
+- `make_{service}_{resource_type}` — session-scoped factory; call it with a name (and `keys` dict for DynamoDB) to get a wrapper instance with UUID suffix; all resources deleted at session teardown
+- `{service}_{resource_type}` — function-scoped convenience fixture; one fresh resource per test, deleted after
 
 Wrapper classes live in `src/samstack/resources/`:
 - `S3Bucket` — `put(key, data)`, `get(key)`, `get_json(key)`, `delete(key)`, `list_keys(prefix)`, `.name`, `.client`
@@ -57,7 +58,7 @@ Wrapper classes live in `src/samstack/resources/`:
 - `SqsQueue` — `send(body, **kw)`, `receive(max=10, wait=1)`, `purge()`, `.url`, `.client`
 - `SnsTopic` — `publish(message, subject=None)`, `subscribe_sqs(queue_arn)`, `.arn`, `.client`
 
-`DynamoTable` wraps `boto3.resource('dynamodb').Table` (high-level resource API) — item values are plain Python types, not `AttributeValueTypeDef` maps. `_dynamodb_resource` is an internal session fixture (prefixed `_`); it must be imported with `# noqa: F401` in `plugin.py`.
+`DynamoTable` wraps `boto3.resource('dynamodb').Table` (high-level resource API) — item values are plain Python types, not `AttributeValueTypeDef` maps. `dynamodb_resource` is a public session fixture for external use. `s3_resource` and `sqs_resource` provide session-scoped boto3 resource objects for the same purpose. The pattern: use wrappers (`S3Bucket`, `SqsQueue`, `DynamoTable`) for setup and manipulation; use resource fixtures (`s3_resource`, `sqs_resource`, `dynamodb_resource`) to construct boto3 resource instances for assertions.
 
 ### Fixture dependency chain
 
@@ -76,13 +77,15 @@ lambda_client                → samstack_settings, sam_lambda_endpoint
 
 # Resource fixtures (all depend on localstack_endpoint + samstack_settings)
 s3_client                    → localstack_endpoint, samstack_settings
+s3_resource                  → localstack_endpoint, samstack_settings
 make_s3_bucket            → s3_client
 s3_bucket          [func]    → s3_client
 dynamodb_client              → localstack_endpoint, samstack_settings
-_dynamodb_resource           → localstack_endpoint, samstack_settings
-make_dynamodb_table       → dynamodb_client, _dynamodb_resource
-dynamodb_table     [func]    → dynamodb_client, _dynamodb_resource
+dynamodb_resource            → localstack_endpoint, samstack_settings
+make_dynamodb_table       → dynamodb_client, dynamodb_resource
+dynamodb_table     [func]    → dynamodb_client, dynamodb_resource
 sqs_client                   → localstack_endpoint, samstack_settings
+sqs_resource                 → localstack_endpoint, samstack_settings
 make_sqs_queue            → sqs_client
 sqs_queue          [func]    → sqs_client
 sns_client                   → localstack_endpoint, samstack_settings

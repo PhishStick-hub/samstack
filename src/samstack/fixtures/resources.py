@@ -38,9 +38,9 @@ def _safe_cleanup(description: str) -> Iterator[None]:
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table
-    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3 import S3Client, S3ServiceResource
     from mypy_boto3_sns import SNSClient
-    from mypy_boto3_sqs import SQSClient
+    from mypy_boto3_sqs import SQSClient, SQSServiceResource
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +55,26 @@ def s3_client(
 ) -> S3Client:
     """Session-scoped boto3 S3 client pointed at LocalStack."""
     return boto3.client(
+        "s3",
+        endpoint_url=localstack_endpoint,
+        region_name=samstack_settings.region,
+        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
+        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+    )
+
+
+@pytest.fixture(scope="session")
+def s3_resource(
+    localstack_endpoint: str,
+    samstack_settings: SamStackSettings,
+) -> S3ServiceResource:
+    """Session-scoped boto3 S3 resource pointed at LocalStack.
+
+    Use to construct Object resource instances:
+
+        obj = s3_resource.Object(s3_bucket.name, "result.json")
+    """
+    return boto3.resource(
         "s3",
         endpoint_url=localstack_endpoint,
         region_name=samstack_settings.region,
@@ -139,7 +159,7 @@ def dynamodb_client(
 
 
 @pytest.fixture(scope="session")
-def _dynamodb_resource(
+def dynamodb_resource(
     localstack_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> DynamoDBServiceResource:
@@ -177,7 +197,7 @@ def _create_dynamo_table(
 @pytest.fixture(scope="session")
 def make_dynamodb_table(
     dynamodb_client: DynamoDBClient,
-    _dynamodb_resource: DynamoDBServiceResource,
+    dynamodb_resource: DynamoDBServiceResource,
 ) -> Iterator[Callable[[str, dict[str, str]], DynamoTable]]:
     """
     Session-scoped factory that creates DynamoTable instances.
@@ -200,7 +220,7 @@ def make_dynamodb_table(
 
     def _create(name: str, keys: dict[str, str]) -> DynamoTable:
         actual = f"{name}-{uuid4().hex[:8]}"
-        table = _create_dynamo_table(dynamodb_client, _dynamodb_resource, actual, keys)
+        table = _create_dynamo_table(dynamodb_client, dynamodb_resource, actual, keys)
         created.append(actual)
         return table
 
@@ -214,7 +234,7 @@ def make_dynamodb_table(
 @pytest.fixture
 def dynamodb_table(
     dynamodb_client: DynamoDBClient,
-    _dynamodb_resource: DynamoDBServiceResource,
+    dynamodb_resource: DynamoDBServiceResource,
 ) -> Iterator[DynamoTable]:
     """
     Function-scoped DynamoTable fixture. Default key schema: ``{"id": "S"}``.
@@ -227,7 +247,7 @@ def dynamodb_table(
             assert dynamodb_table.get_item({"id": "1"})["data"] == "x"
     """
     name = f"test-{uuid4().hex[:8]}"
-    table = _create_dynamo_table(dynamodb_client, _dynamodb_resource, name, {"id": "S"})
+    table = _create_dynamo_table(dynamodb_client, dynamodb_resource, name, {"id": "S"})
     yield table
     with _safe_cleanup(f"DynamoDB table '{name}'"):
         dynamodb_client.delete_table(TableName=name)
@@ -245,6 +265,26 @@ def sqs_client(
 ) -> SQSClient:
     """Session-scoped boto3 SQS client pointed at LocalStack."""
     return boto3.client(
+        "sqs",
+        endpoint_url=localstack_endpoint,
+        region_name=samstack_settings.region,
+        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
+        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+    )
+
+
+@pytest.fixture(scope="session")
+def sqs_resource(
+    localstack_endpoint: str,
+    samstack_settings: SamStackSettings,
+) -> SQSServiceResource:
+    """Session-scoped boto3 SQS resource pointed at LocalStack.
+
+    Use to construct Queue resource instances:
+
+        queue = sqs_resource.Queue(sqs_queue.url)
+    """
+    return boto3.resource(
         "sqs",
         endpoint_url=localstack_endpoint,
         region_name=samstack_settings.region,
