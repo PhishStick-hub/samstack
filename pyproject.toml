@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "samstack"
-version = "0.1.3"
+version = "0.2.0"
 description = "Pytest fixtures for testing AWS SAM Lambdas locally with LocalStack"
 readme = "README.md"
 authors = [
