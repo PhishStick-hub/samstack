@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/PhishStick-hub/samstack/compare/v0.1.3...v0.2.0) (2026-04-15)
+
+
+### Features
+
+* **fixtures:** add s3_resource and sqs_resource session fixtures ([2442916](https://github.com/PhishStick-hub/samstack/commit/244291672351afa1cf033d3877aee21b88dbdb6b))
+* **fixtures:** add s3_resource, dynamodb_resource, sqs_resource session fixtures ([d9c3e0e](https://github.com/PhishStick-hub/samstack/commit/d9c3e0e111a9a984ce1133828cda3a0749941bf6))
+
+
+### Documentation
+
+* **fixtures:** document s3_resource, dynamodb_resource, sqs_resource fixtures ([52385e0](https://github.com/PhishStick-hub/samstack/commit/52385e0a844f6d27345554bc960f33eea275ff61))
+
 ## [0.1.3](https://github.com/PhishStick-hub/samstack/compare/v0.1.2...v0.1.3) (2026-04-12)
 
 
