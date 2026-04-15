@@ -58,7 +58,7 @@ Wrapper classes live in `src/samstack/resources/`:
 - `SqsQueue` — `send(body, **kw)`, `receive(max=10, wait=1)`, `purge()`, `.url`, `.client`
 - `SnsTopic` — `publish(message, subject=None)`, `subscribe_sqs(queue_arn)`, `.arn`, `.client`
 
-`DynamoTable` wraps `boto3.resource('dynamodb').Table` (high-level resource API) — item values are plain Python types, not `AttributeValueTypeDef` maps. `dynamodb_resource` is a public session fixture for external use (e.g. aws-expect assertions). `s3_resource` and `sqs_resource` provide session-scoped boto3 resource objects for the same purpose. The pattern: use wrappers (`S3Bucket`, `SqsQueue`, `DynamoTable`) for setup and manipulation; use resource fixtures (`s3_resource`, `sqs_resource`, `dynamodb_resource`) to construct boto3 resource instances for aws-expect assertions.
+`DynamoTable` wraps `boto3.resource('dynamodb').Table` (high-level resource API) — item values are plain Python types, not `AttributeValueTypeDef` maps. `dynamodb_resource` is a public session fixture for external use. `s3_resource` and `sqs_resource` provide session-scoped boto3 resource objects for the same purpose. The pattern: use wrappers (`S3Bucket`, `SqsQueue`, `DynamoTable`) for setup and manipulation; use resource fixtures (`s3_resource`, `sqs_resource`, `dynamodb_resource`) to construct boto3 resource instances for assertions.
 
 ### Fixture dependency chain
 

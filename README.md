@@ -127,6 +127,7 @@ All SAM fixtures are `scope="session"` — Docker containers start once and are 
 
 Ready-to-use fixtures for S3, DynamoDB, SQS, and SNS. Each service provides:
 - a **session-scoped boto3 client** (`s3_client`, `dynamodb_client`, `sqs_client`, `sns_client`)
+- a **session-scoped boto3 resource object** (`s3_resource`, `dynamodb_resource`, `sqs_resource`) — S3, DynamoDB, and SQS only (SNS has no boto3 resource API)
 - a **session-scoped `make_*` fixture** that creates uniquely-named resources and deletes them at the end of the session
 - a **function-scoped convenience fixture** that creates one fresh resource per test and deletes it after
 
@@ -135,12 +136,15 @@ All resources get a UUID suffix on creation to avoid collisions between parallel
 | Fixture | Scope | Type | Description |
 |---|---|---|---|
 | `s3_client` | session | `S3Client` | boto3 S3 client pointed at LocalStack |
+| `s3_resource` | session | `S3ServiceResource` | boto3 S3 resource pointed at LocalStack |
 | `make_s3_bucket` | session | `Callable[[str], S3Bucket]` | Call with a base name, returns a new `S3Bucket` |
 | `s3_bucket` | function | `S3Bucket` | Fresh bucket per test; deleted after |
 | `dynamodb_client` | session | `DynamoDBClient` | boto3 DynamoDB client pointed at LocalStack |
+| `dynamodb_resource` | session | `DynamoDBServiceResource` | boto3 DynamoDB resource (high-level) pointed at LocalStack |
 | `make_dynamodb_table` | session | `Callable[[str, dict[str, str]], DynamoTable]` | Call with name + key schema dict, returns a new `DynamoTable` |
 | `dynamodb_table` | function | `DynamoTable` | Fresh table per test (key: `{"id": "S"}`); deleted after |
 | `sqs_client` | session | `SQSClient` | boto3 SQS client pointed at LocalStack |
+| `sqs_resource` | session | `SQSServiceResource` | boto3 SQS resource pointed at LocalStack |
 | `make_sqs_queue` | session | `Callable[[str], SqsQueue]` | Call with a base name, returns a new `SqsQueue` |
 | `sqs_queue` | function | `SqsQueue` | Fresh queue per test; deleted after |
 | `sns_client` | session | `SNSClient` | boto3 SNS client pointed at LocalStack |

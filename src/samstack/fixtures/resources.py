@@ -70,10 +70,9 @@ def s3_resource(
 ) -> S3ServiceResource:
     """Session-scoped boto3 S3 resource pointed at LocalStack.
 
-    Use to construct Object resource instances for aws-expect:
+    Use to construct Object resource instances:
 
         obj = s3_resource.Object(s3_bucket.name, "result.json")
-        expect_s3(obj).to_exist(timeout=10)
     """
     return boto3.resource(
         "s3",
@@ -281,10 +280,9 @@ def sqs_resource(
 ) -> SQSServiceResource:
     """Session-scoped boto3 SQS resource pointed at LocalStack.
 
-    Use to construct Queue resource instances for aws-expect:
+    Use to construct Queue resource instances:
 
         queue = sqs_resource.Queue(sqs_queue.url)
-        expect_sqs(queue).to_have_message("hello", timeout=10)
     """
     return boto3.resource(
         "sqs",
