@@ -11,4 +11,5 @@ jobs:
   ci:
     uses: ./.github/workflows/_ci.yml
     with:
+      ref: ${{ github.sha }}
       run-build: ${{ github.event_name == 'pull_request' }}
