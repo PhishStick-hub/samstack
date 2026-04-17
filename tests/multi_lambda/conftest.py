@@ -38,10 +38,13 @@ def sam_env_vars(sam_env_vars: dict[str, dict[str, str]]) -> dict[str, dict[str,
     return sam_env_vars
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def _mock_b_session(
     make_lambda_mock: Callable[..., LambdaMock],
 ) -> LambdaMock:
+    # autouse forces registration before ``sam_build`` reads ``sam_env_vars``
+    # and writes env_vars.json — otherwise Mock B's env vars never reach the
+    # Lambda container.
     return make_lambda_mock("MockBFunction", alias="mock-b")
 
 

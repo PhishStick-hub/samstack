@@ -83,7 +83,7 @@ def handler(event: dict[str, Any], _context: Any) -> Any:
         if path.endswith("/http"):
             upstream = _http_to_b(body)
         elif path.endswith("/invoke"):
-            upstream = _invoke_b(body)
+            upstream = _invoke_b(body.get("payload", {}))
         elif path.endswith("/self"):
             upstream = _invoke_self({"target": "noop"})
         else:

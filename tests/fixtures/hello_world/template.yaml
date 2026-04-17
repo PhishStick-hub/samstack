@@ -17,7 +17,11 @@ Resources:
       Runtime: python3.13
       Environment:
         Variables:
-          AWS_ENDPOINT_URL: ""
+          AWS_ENDPOINT_URL_S3: ""
+          AWS_ENDPOINT_URL_DYNAMODB: ""
+          AWS_ENDPOINT_URL_SQS: ""
+          AWS_ENDPOINT_URL_SNS: ""
+          AWS_ENDPOINT_URL_LAMBDA: ""
           AWS_DEFAULT_REGION: us-east-1
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test

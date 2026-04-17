@@ -110,6 +110,8 @@ sns_topic          [func]    → sns_client
 
 This lets Lambda-to-Lambda `boto3.client("lambda").invoke(...)` calls reach the SAM local-lambda runtime instead of LocalStack — a prerequisite for the `samstack.mock` use case. Lambda code consuming these env vars needs no `endpoint_url=` kwarg: boto3 auto-reads them.
 
+**SAM env-var propagation gotcha**: `sam local` only delivers env vars to a Lambda container that are **declared on the function** (`Environment.Variables` in the template, either on the function directly or on `Globals.Function`). `--env-vars` JSON (both `Parameters` and per-function sections) is treated as *overrides* for already-declared keys — **undeclared keys are silently dropped**. Templates that want to receive `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_LAMBDA`, `MOCK_SPY_BUCKET`, etc. at runtime must declare them (empty string is fine) in `Environment.Variables`. See `tests/fixtures/hello_world/template.yaml` and `tests/fixtures/multi_lambda/template.test.yaml` for the pattern.
+
 ### SAM containers
 
 Both `sam_api` and `sam_lambda_endpoint` use `testcontainers.core.container.DockerContainer`. The SAM image runs the CLI inside Docker (not on the host). Volume mounts:

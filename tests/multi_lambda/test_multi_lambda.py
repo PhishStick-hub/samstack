@@ -45,7 +45,8 @@ def test_http_call_path_recorded(
     )
     call = mock_b.calls.one
     assert call.method == method
-    assert call.path == sub_path
+    # API Gateway proxy integration sees the full path; /mock-b/<sub_path>.
+    assert call.path == f"/mock-b{sub_path}"
     assert call.body == {"x": 1}
 
 
@@ -80,7 +81,11 @@ def test_http_response_override(sam_api: str, mock_b: LambdaMock) -> None:
 # --- Invoke path: Lambda A → boto3 client → Mock B -------------------------
 
 
-def test_invoke_captures_payload(sam_api: str, mock_b: LambdaMock) -> None:
+def test_invoke_captures_payload(
+    sam_api: str,
+    sam_lambda_endpoint: str,
+    mock_b: LambdaMock,
+) -> None:
     requests.post(
         f"{sam_api}/lambda-a/invoke",
         json={"payload": {"order_id": "xyz"}},
@@ -138,5 +143,5 @@ def test_calls_matching_filter(sam_api: str, mock_b: LambdaMock) -> None:
         json={"path": "/health", "method": "GET", "payload": {}},
         timeout=15,
     )
-    orders = mock_b.calls.matching(path="/orders", method="POST")
+    orders = mock_b.calls.matching(path="/mock-b/orders", method="POST")
     assert orders.one.body == {"total": 100}

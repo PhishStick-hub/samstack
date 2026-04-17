@@ -287,6 +287,24 @@ To target a specific function instead of all functions, use its logical name as 
 sam_env_vars["MyFunction"] = {"SECRET": "test-secret"}
 ```
 
+> **SAM caveat:** `sam local` only surfaces env vars that are **declared** on the
+> function's `Environment.Variables` section of the template. Values in
+> `sam_env_vars` (both `Parameters` and per-function entries) act as *overrides*
+> for vars already declared on the function — undeclared ones are dropped
+> silently. Declare each key you plan to inject, even as an empty string:
+>
+> ```yaml
+> Resources:
+>   MyFunction:
+>     Type: AWS::Serverless::Function
+>     Properties:
+>       Environment:
+>         Variables:
+>           AWS_ENDPOINT_URL_S3: ""      # filled at runtime by sam_env_vars
+>           AWS_ENDPOINT_URL_LAMBDA: ""
+>           MY_TABLE: ""
+> ```
+
 ### Use LocalStack in tests
 
 samstack ships built-in fixtures for S3, DynamoDB, SQS, and SNS. Use the function-scoped fixtures for isolated per-test resources, or the session-scoped factories to share resources across tests.
@@ -454,8 +472,11 @@ def sam_env_vars(sam_env_vars):
     sam_env_vars["Parameters"]["LAMBDA_B_URL"] = "http://sam-api:3000/mock-b"
     return sam_env_vars
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def _mock_b_session(make_lambda_mock) -> LambdaMock:
+    # autouse forces mock registration before sam_build reads sam_env_vars
+    # and writes env_vars.json. Without it, tests that request `sam_api`
+    # before `mock_b` never propagate MOCK_SPY_BUCKET to the Lambda.
     return make_lambda_mock("MockBFunction", alias="mock-b")
 
 @pytest.fixture
@@ -463,6 +484,24 @@ def mock_b(_mock_b_session):
     _mock_b_session.clear()    # wipe spy + response queue between tests
     yield _mock_b_session
 ```
+
+> **Template requirement**: every env var you plan to inject via
+> `make_lambda_mock` / `sam_env_vars` must be declared on the function's
+> `Environment.Variables` in `template.test.yaml` (empty string is fine) —
+> `sam local` silently drops undeclared keys. For a mock function this means:
+>
+> ```yaml
+> MockBFunction:
+>   Type: AWS::Serverless::Function
+>   Properties:
+>     CodeUri: tests/mocks/mock_b/
+>     Handler: handler.handler
+>     Environment:
+>       Variables:
+>         MOCK_SPY_BUCKET: ""
+>         MOCK_FUNCTION_NAME: ""
+>         AWS_ENDPOINT_URL_S3: ""
+> ```
 
 ### Write tests
 
