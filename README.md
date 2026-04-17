@@ -150,6 +150,7 @@ All resources get a UUID suffix on creation to avoid collisions between parallel
 | `sns_client` | session | `SNSClient` | boto3 SNS client pointed at LocalStack |
 | `make_sns_topic` | session | `Callable[[str], SnsTopic]` | Call with a base name, returns a new `SnsTopic` |
 | `sns_topic` | function | `SnsTopic` | Fresh topic per test; deleted after |
+| `make_lambda_mock` | session | `Callable[..., LambdaMock]` | Wire a mock Lambda (spy bucket + env vars + response queue). See [Mocking other Lambdas](#mocking-other-lambdas-integration-tests). |
 
 #### Wrapper class APIs
 
@@ -217,7 +218,7 @@ region            = "us-east-1"
 api_port          = 3000
 lambda_port       = 3001
 localstack_image  = "localstack/localstack:4"
-log_dir           = "logs/sam"
+log_dir           = "logs"
 build_args        = []
 start_api_args    = []
 start_lambda_args = []
@@ -233,7 +234,7 @@ architecture      = "arm64"              # auto-detected; override if needed
 | `api_port` | int | `3000` | Host port mapped to `sam local start-api`. |
 | `lambda_port` | int | `3001` | Host port mapped to `sam local start-lambda`. |
 | `localstack_image` | string | `"localstack/localstack:4"` | LocalStack Docker image. See [LocalStack image versions](#localstack-image-versions). |
-| `log_dir` | string | `"logs/sam"` | Directory (relative to `project_root`) for SAM logs and `env_vars.json`. |
+| `log_dir` | string | `"logs"` | Directory (relative to `project_root`) for SAM and LocalStack logs and `env_vars.json`. |
 | `build_args` | list[string] | `[]` | Extra CLI args appended to `sam build`. |
 | `start_api_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-api`. |
 | `start_lambda_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-lambda`. |
@@ -285,6 +286,24 @@ To target a specific function instead of all functions, use its logical name as 
 ```python
 sam_env_vars["MyFunction"] = {"SECRET": "test-secret"}
 ```
+
+> **SAM caveat:** `sam local` only surfaces env vars that are **declared** on the
+> function's `Environment.Variables` section of the template. Values in
+> `sam_env_vars` (both `Parameters` and per-function entries) act as *overrides*
+> for vars already declared on the function — undeclared ones are dropped
+> silently. Declare each key you plan to inject, even as an empty string:
+>
+> ```yaml
+> Resources:
+>   MyFunction:
+>     Type: AWS::Serverless::Function
+>     Properties:
+>       Environment:
+>         Variables:
+>           AWS_ENDPOINT_URL_S3: ""      # filled at runtime by sam_env_vars
+>           AWS_ENDPOINT_URL_LAMBDA: ""
+>           MY_TABLE: ""
+> ```
 
 ### Use LocalStack in tests
 
@@ -364,23 +383,196 @@ def sam_lambda_extra_args() -> list[str]:
 
 ## Lambda handler conventions
 
-Lambda functions can reach LocalStack at `http://localstack:4566`, injected automatically as `AWS_ENDPOINT_URL`. Pass it as `endpoint_url` to boto3:
+samstack injects **per-service** endpoint env vars (boto3 ≥ 1.28 auto-picks these up) so boto3 clients need no explicit `endpoint_url`:
+
+| Variable | Points at |
+|---|---|
+| `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_SQS`, `AWS_ENDPOINT_URL_SNS` | LocalStack (`http://localstack:4566`) |
+| `AWS_ENDPOINT_URL_LAMBDA` | SAM `start-lambda` (`http://sam-lambda:{lambda_port}`) — so Lambda-to-Lambda invokes stay in SAM instead of leaking into LocalStack |
 
 ```python
-import boto3, os
+import boto3
 
 def handler(event, context):
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=os.environ.get("AWS_ENDPOINT_URL") or None,
-        region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-    )
+    s3 = boto3.client("s3")        # auto-routed to LocalStack
+    lam = boto3.client("lambda")   # auto-routed to sam local start-lambda
     # ...
 ```
 
-In production `AWS_ENDPOINT_URL` is unset so boto3 hits real AWS. The `or None` guard ensures an empty string doesn't override production routing.
+In production those env vars are unset, so boto3 hits real AWS with no code changes.
+
+> **Breaking change (v0.3.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to LocalStack. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
+
+---
+
+## Mocking other Lambdas (integration tests)
+
+When Lambda A calls Lambda B (via HTTP through API Gateway **or** via boto3 invoke), replace B with a mock that records every incoming call and returns canned responses. Mocks share the same SAM template as the real function — no fakes, no monkey-patching.
+
+### Define the mock function in your test template
+
+Keep production `template.yaml` clean, put the mock in a test-only template (e.g. `template.test.yaml`). The mock handler code belongs **under `tests/`**, never next to production `src/`:
+
+```
+lambda_a/
+  template.yaml          # prod — only LambdaAFunction
+  template.test.yaml     # test — LambdaAFunction + MockBFunction
+  src/
+    lambda_a/
+      handler.py         # production code
+  tests/
+    mocks/
+      mock_b/
+        handler.py       # 1 line: re-exports samstack.mock.spy_handler
+        requirements.txt # samstack
+```
+
+```yaml
+# template.test.yaml
+Resources:
+  LambdaAFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/lambda_a/
+      Handler: handler.handler
+  MockBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: tests/mocks/mock_b/
+      Handler: handler.handler
+      Events:
+        Proxy:
+          Type: Api
+          Properties: { Path: /mock-b/{proxy+}, Method: ANY }
+```
+
+```python
+# tests/mocks/mock_b/handler.py
+from samstack.mock import spy_handler as handler
+```
+
+### Wire the mock from your conftest
+
+```python
+# tests/conftest.py
+import pytest
+from samstack.mock import LambdaMock
+
+@pytest.fixture(scope="session")
+def samstack_settings():
+    from samstack.settings import SamStackSettings
+    return SamStackSettings(
+        sam_image="public.ecr.aws/sam/build-python3.13",
+        template="template.test.yaml",
+    )
+
+@pytest.fixture(scope="session")
+def sam_env_vars(sam_env_vars):
+    # Lambda A uses plain HTTP (not boto3) to call Mock B — inject its URL.
+    sam_env_vars["Parameters"]["LAMBDA_B_URL"] = "http://sam-api:3000/mock-b"
+    return sam_env_vars
+
+@pytest.fixture(scope="session", autouse=True)
+def _mock_b_session(make_lambda_mock) -> LambdaMock:
+    # autouse forces mock registration before sam_build reads sam_env_vars
+    # and writes env_vars.json. Without it, tests that request `sam_api`
+    # before `mock_b` never propagate MOCK_SPY_BUCKET to the Lambda.
+    return make_lambda_mock("MockBFunction", alias="mock-b")
+
+@pytest.fixture
+def mock_b(_mock_b_session):
+    _mock_b_session.clear()    # wipe spy + response queue between tests
+    yield _mock_b_session
+```
+
+> **Template requirement**: every env var you plan to inject via
+> `make_lambda_mock` / `sam_env_vars` must be declared on the function's
+> `Environment.Variables` in `template.test.yaml` (empty string is fine) —
+> `sam local` silently drops undeclared keys. For a mock function this means:
+>
+> ```yaml
+> MockBFunction:
+>   Type: AWS::Serverless::Function
+>   Properties:
+>     CodeUri: tests/mocks/mock_b/
+>     Handler: handler.handler
+>     Environment:
+>       Variables:
+>         MOCK_SPY_BUCKET: ""
+>         MOCK_FUNCTION_NAME: ""
+>         AWS_ENDPOINT_URL_S3: ""
+> ```
+
+### Write tests
+
+```python
+import json, requests
+
+# 1. Verify Lambda A calls Mock B with the right payload (default 200 response).
+def test_http_call(sam_api, mock_b):
+    requests.post(f"{sam_api}/lambda-a/http", json={"path": "/orders", "payload": {"qty": 3}})
+    assert mock_b.calls.one.path == "/orders"
+    assert mock_b.calls.one.body == {"qty": 3}
+
+# 2. Override Mock B's response for a specific test.
+def test_error_path(sam_api, mock_b):
+    mock_b.next_response({"statusCode": 500, "body": '{"error": "boom"}'})
+    resp = requests.post(f"{sam_api}/lambda-a/http", json={"path": "/x", "payload": {}})
+    assert resp.json() == {"error": "boom"}
+
+# 3. Multi-call with a response queue.
+def test_batch(lambda_client, mock_b):
+    mock_b.response_queue([{"id": "a"}, {"id": "b"}, {"id": "c"}])
+    for tag in ("a", "b", "c"):
+        lambda_client.invoke(
+            FunctionName="LambdaAFunction",
+            Payload=json.dumps({"target": "b", "payload": {"tag": tag}}).encode(),
+        )
+    assert [c.body["tag"] for c in mock_b.calls] == ["a", "b", "c"]
+
+# 4. Parametrized tests + filtering.
+@pytest.mark.parametrize("user_id", ["u1", "u2", "u3"])
+def test_path_per_user(sam_api, mock_b, user_id):
+    requests.post(f"{sam_api}/lambda-a/http",
+                  json={"path": f"/users/{user_id}", "payload": {}})
+    assert mock_b.calls.one.path == f"/users/{user_id}"
+
+def test_only_posts(sam_api, mock_b):
+    # Mix of calls; filter to just the ones you care about.
+    orders = mock_b.calls.matching(path="/orders", method="POST")
+    assert orders.one.body["total"] == 100
+```
+
+### API summary
+
+**`Call`** (frozen dataclass)
+- `method: str` — HTTP verb or `"INVOKE"`
+- `path: str | None` — request path (None for direct invokes)
+- `headers: dict[str, str]` / `query: dict[str, str]`
+- `body: Any` — JSON-parsed when `content-type` is JSON; raw string otherwise; invoke payload for direct invokes
+- `raw_event: dict` — unmodified Lambda event
+
+**`CallList`** (sequence of `Call`)
+- `calls.one` — asserts exactly one call and returns it
+- `calls.last` — last call
+- `calls.matching(method="POST", path="/orders")` — new CallList filtered by field equality
+- Supports `len()`, indexing, iteration
+
+**`LambdaMock`**
+- `.calls` — `CallList` in chronological order
+- `.clear()` — remove all spy events + queued responses
+- `.next_response(resp: dict)` — queue a single response
+- `.response_queue(resps: list[dict])` — queue multiple responses (consumed head-first)
+- `.name` / `.bucket` — spy alias and underlying `S3Bucket`
+
+**`make_lambda_mock(function_name: str, *, alias: str, bucket: S3Bucket | None = None)`**
+Session-scoped factory. Creates a spy bucket (or reuses one), injects `MOCK_SPY_BUCKET` / `MOCK_FUNCTION_NAME` / `AWS_ENDPOINT_URL_S3` into `sam_env_vars[function_name]`, returns a `LambdaMock`. Must be called **before** `sam_build` runs (i.e. before any test requests `sam_api` / `sam_lambda_endpoint`).
+
+### How the spy stores calls
+
+- Each incoming event is JSON-serialised (normalized into `Call` shape) and written to `s3://{spy_bucket}/spy/{alias}/{iso-timestamp}-{uuid}.json` — lex sort equals chronological order.
+- `response_queue` lives at `s3://{spy_bucket}/mock-responses/{alias}/queue.json`; the head is popped and returned, remainder written back (or object deleted when empty).
+- Multiple mocks can share one bucket — each owns its own prefix.
 
 ---
 
@@ -423,10 +615,11 @@ Full list: [hub.docker.com/r/localstack/localstack/tags](https://hub.docker.com/
 
 ## Logs
 
-SAM and build output is streamed to `{log_dir}/` (default `logs/sam/`):
+SAM and LocalStack output is streamed to `{log_dir}/` (default `logs/`):
 
 ```
-logs/sam/
+logs/
+├── localstack.log     # LocalStack container stdout + stderr
 ├── start-api.log      # sam local start-api stdout + Lambda invocation logs
 ├── start-lambda.log   # sam local start-lambda stdout
 └── env_vars.json      # generated env vars file passed to SAM

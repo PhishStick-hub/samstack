@@ -44,6 +44,7 @@ from samstack.fixtures.sam_lambda import (
     sam_lambda_endpoint,
     sam_lambda_extra_args,
 )
+from samstack.mock.fixture import make_lambda_mock
 from samstack.settings import SamStackSettings, load_settings
 
 __all__ = [
@@ -56,6 +57,7 @@ __all__ = [
     "localstack_container",
     "localstack_endpoint",
     "make_dynamodb_table",
+    "make_lambda_mock",
     "make_s3_bucket",
     "make_sns_topic",
     "make_sqs_queue",
@@ -77,6 +79,18 @@ __all__ = [
 ]
 
 
+def _find_settings() -> SamStackSettings:
+    """Search upward from cwd for pyproject.toml and load [tool.samstack]."""
+    cwd = Path.cwd()
+    for parent in [cwd, *cwd.parents]:
+        candidate = parent / "pyproject.toml"
+        if candidate.exists():
+            return load_settings(parent)
+    raise FileNotFoundError(
+        "pyproject.toml not found. samstack requires [tool.samstack] in pyproject.toml."
+    )
+
+
 @pytest.fixture(scope="session")
 def samstack_settings() -> SamStackSettings:
     """
@@ -89,11 +103,4 @@ def samstack_settings() -> SamStackSettings:
         def samstack_settings() -> SamStackSettings:
             return SamStackSettings(sam_image="public.ecr.aws/sam/build-python3.13")
     """
-    cwd = Path.cwd()
-    for parent in [cwd, *cwd.parents]:
-        candidate = parent / "pyproject.toml"
-        if candidate.exists():
-            return load_settings(parent)
-    raise FileNotFoundError(
-        "pyproject.toml not found. samstack requires [tool.samstack] in pyproject.toml."
-    )
+    return _find_settings()

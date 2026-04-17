@@ -17,6 +17,19 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "hello_world"
 INTEGRATION_BUCKET = "samstack-integration-test"
 
 
+# multi_lambda/ pins ``samstack_settings`` to a different fixture project.
+# Session-scoped SAM fixtures (sam_build, sam_api, sam_lambda_endpoint) cache
+# the first resolution across the whole run, so mixing both suites in one
+# session makes hello_world tests hit the multi_lambda template (or vice
+# versa). Ignore multi_lambda unless it is explicitly targeted on the CLI.
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
+    if "multi_lambda" not in str(collection_path):
+        return None
+    args = config.invocation_params.args
+    explicit = any("multi_lambda" in str(arg) for arg in args)
+    return None if explicit else True
+
+
 @pytest.fixture(scope="session")
 def samstack_settings() -> SamStackSettings:
     return SamStackSettings(

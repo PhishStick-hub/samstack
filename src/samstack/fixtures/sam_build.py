@@ -29,6 +29,14 @@ def sam_env_vars(samstack_settings: SamStackSettings) -> dict[str, dict[str, str
     """
     Default environment variables injected into all Lambda functions at runtime.
 
+    Routes each AWS service to the correct local backend via per-service
+    ``AWS_ENDPOINT_URL_<SERVICE>`` variables (boto3 >= 1.28):
+
+    - S3, DynamoDB, SQS, SNS → LocalStack (``http://localstack:4566``)
+    - Lambda → SAM local start-lambda (``http://sam-lambda:3001``) — so Lambda
+      code that invokes another Lambda via ``boto3.client('lambda')`` hits the
+      SAM runtime, not LocalStack.
+
     Override in your conftest.py to add function-specific vars:
 
         @pytest.fixture(scope="session")
@@ -38,7 +46,11 @@ def sam_env_vars(samstack_settings: SamStackSettings) -> dict[str, dict[str, str
     """
     return {
         "Parameters": {
-            "AWS_ENDPOINT_URL": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_S3": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_DYNAMODB": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_SQS": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_SNS": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_LAMBDA": f"http://sam-lambda:{samstack_settings.lambda_port}",
             "AWS_DEFAULT_REGION": samstack_settings.region,
             "AWS_ACCESS_KEY_ID": LOCALSTACK_ACCESS_KEY,
             "AWS_SECRET_ACCESS_KEY": LOCALSTACK_SECRET_KEY,

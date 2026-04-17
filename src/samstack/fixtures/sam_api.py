@@ -43,5 +43,6 @@ def sam_api(
         fixture_extra_args=sam_api_extra_args,
         log_filename="start-api.log",
         wait_mode="http",
+        network_alias="sam-api",
     ) as endpoint:
         yield endpoint

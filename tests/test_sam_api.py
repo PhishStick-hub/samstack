@@ -5,15 +5,10 @@ from __future__ import annotations
 import requests
 
 
-def test_get_hello_returns_200(sam_api: str) -> None:
+def test_get_hello(sam_api: str) -> None:
     response = requests.get(f"{sam_api}/hello", timeout=10)
     assert response.status_code == 200
-
-
-def test_get_hello_returns_message(sam_api: str) -> None:
-    response = requests.get(f"{sam_api}/hello", timeout=10)
-    body = response.json()
-    assert body["message"] == "hello"
+    assert response.json() == {"message": "hello"}
 
 
 def test_unknown_path_returns_4xx(sam_api: str) -> None:

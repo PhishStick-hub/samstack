@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: samstack multi-lambda mock integration fixture
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+    Runtime: python3.13
+    Environment:
+      Variables:
+        # Declared so sam_env_vars Parameters can inject real values.
+        # SAM local only propagates env vars that are declared on the function.
+        AWS_ENDPOINT_URL_S3: ""
+        AWS_ENDPOINT_URL_DYNAMODB: ""
+        AWS_ENDPOINT_URL_SQS: ""
+        AWS_ENDPOINT_URL_SNS: ""
+        AWS_ENDPOINT_URL_LAMBDA: ""
+        AWS_DEFAULT_REGION: us-east-1
+        AWS_ACCESS_KEY_ID: test
+        AWS_SECRET_ACCESS_KEY: test
+        LAMBDA_B_URL: ""
+        MOCK_SPY_BUCKET: ""
+        MOCK_FUNCTION_NAME: ""
+
+Resources:
+  LambdaAFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LambdaAFunction
+      CodeUri: src/lambda_a/
+      Handler: handler.handler
+      Events:
+        LambdaAHttp:
+          Type: Api
+          Properties:
+            Path: /lambda-a/{proxy+}
+            Method: ANY
+
+  MockBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: MockBFunction
+      CodeUri: tests/mocks/mock_b/
+      Handler: handler.handler
+      Events:
+        MockBHttp:
+          Type: Api
+          Properties:
+            Path: /mock-b/{proxy+}
+            Method: ANY

@@ -50,6 +50,7 @@ def sam_lambda_endpoint(
         fixture_extra_args=sam_lambda_extra_args,
         log_filename="start-lambda.log",
         wait_mode="port",
+        network_alias="sam-lambda",
     ) as endpoint:
         yield endpoint
 
