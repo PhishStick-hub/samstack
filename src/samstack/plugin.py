@@ -79,6 +79,18 @@ __all__ = [
 ]
 
 
+def _find_settings() -> SamStackSettings:
+    """Search upward from cwd for pyproject.toml and load [tool.samstack]."""
+    cwd = Path.cwd()
+    for parent in [cwd, *cwd.parents]:
+        candidate = parent / "pyproject.toml"
+        if candidate.exists():
+            return load_settings(parent)
+    raise FileNotFoundError(
+        "pyproject.toml not found. samstack requires [tool.samstack] in pyproject.toml."
+    )
+
+
 @pytest.fixture(scope="session")
 def samstack_settings() -> SamStackSettings:
     """
@@ -91,11 +103,4 @@ def samstack_settings() -> SamStackSettings:
         def samstack_settings() -> SamStackSettings:
             return SamStackSettings(sam_image="public.ecr.aws/sam/build-python3.13")
     """
-    cwd = Path.cwd()
-    for parent in [cwd, *cwd.parents]:
-        candidate = parent / "pyproject.toml"
-        if candidate.exists():
-            return load_settings(parent)
-    raise FileNotFoundError(
-        "pyproject.toml not found. samstack requires [tool.samstack] in pyproject.toml."
-    )
+    return _find_settings()

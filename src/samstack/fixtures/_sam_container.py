@@ -72,7 +72,7 @@ def _connect_container_with_alias(
     network.connect(inner.id, aliases=[alias])
 
 
-def _disconnect_container(
+def _disconnect_container_from_network(
     client: docker_sdk.DockerClient,
     network_name: str,
     container: DockerContainer,
@@ -141,7 +141,7 @@ def _run_sam_service(
         yield f"http://127.0.0.1:{host_port}"
     finally:
         try:
-            _disconnect_container(client, docker_network, container)
+            _disconnect_container_from_network(client, docker_network, container)
         except Exception as exc:
             warnings.warn(
                 f"samstack: failed to disconnect SAM container from network '{docker_network}': {exc}",

@@ -1,19 +1,27 @@
 from __future__ import annotations
 
+import contextlib
 import warnings
 from collections.abc import Iterator
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import docker as docker_sdk
-import docker.models.containers
-import docker.models.networks
 import pytest
 from testcontainers.localstack import LocalStackContainer
 
 from samstack._errors import DockerNetworkError
 from samstack._process import stream_logs_to_file
-from samstack.fixtures._sam_container import DOCKER_SOCKET
+from samstack.fixtures._sam_container import (
+    DOCKER_SOCKET,
+    _connect_container_with_alias,
+    _disconnect_container_from_network,
+)
 from samstack.settings import SamStackSettings
+
+if TYPE_CHECKING:
+    import docker.models.containers
+    import docker.models.networks
 
 
 # — Docker network ----------------------------------------------------------------
@@ -26,8 +34,13 @@ def _stop_network_container(
     try:
         container.stop(timeout=5)
         container.remove(force=True)
-    except Exception:
-        network.disconnect(container, force=True)
+    except Exception as exc:
+        warnings.warn(
+            f"samstack: failed to stop container during network teardown: {exc}",
+            stacklevel=1,
+        )
+        with contextlib.suppress(Exception):
+            network.disconnect(container, force=True)
 
 
 def _teardown_network(network: docker_sdk.models.networks.Network, name: str) -> None:
@@ -69,28 +82,6 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
 # — LocalStack container -------------------------------------------------------
 
 
-def _connect_container_to_network(
-    client: docker_sdk.DockerClient,
-    network_name: str,
-    container: LocalStackContainer,
-) -> None:
-    network = client.networks.get(network_name)
-    inner = container.get_wrapped_container()
-    assert inner is not None, "LocalStack container failed to start"
-    network.connect(inner.id, aliases=["localstack"])
-
-
-def _disconnect_container_from_network(
-    client: docker_sdk.DockerClient,
-    network_name: str,
-    container: LocalStackContainer,
-) -> None:
-    network = client.networks.get(network_name)
-    inner = container.get_wrapped_container()
-    if inner is not None:
-        network.disconnect(inner.id, force=True)
-
-
 @pytest.fixture(scope="session")
 def localstack_container(
     samstack_settings: SamStackSettings,
@@ -109,7 +100,7 @@ def localstack_container(
 
     client = docker_sdk.from_env()
     try:
-        _connect_container_to_network(client, docker_network, container)
+        _connect_container_with_alias(client, docker_network, container, "localstack")
     except Exception as exc:
         container.stop()
         raise DockerNetworkError(name=docker_network, reason=str(exc)) from exc
