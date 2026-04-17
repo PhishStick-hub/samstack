@@ -41,7 +41,7 @@ uv run pytest tests/ -v --timeout=300
 
 ### Type checking gotchas
 
-`ty` does **not** support `# type: ignore[...]` (mypy-only). Use `cast()` from `typing` for coercions ty can't infer. In unit test files, annotate mock parameters as `MagicMock` — annotating them as the real boto3 type causes ty to flag missing mock attributes.
+`ty` does **not** support `# type: ignore[...]` (mypy-only). Prefer refactoring over escape hatches; avoid `cast()` as a generic workaround. In unit test files, annotate mock parameters as `MagicMock` — annotating them as the real boto3 type causes ty to flag missing mock attributes.
 
 ### LocalStack resource fixtures
 
@@ -99,8 +99,16 @@ sns_topic          [func]    → sns_client
 
 1. `docker_network` creates a named Docker bridge network (`samstack-{uuid8}`)
 2. `localstack_container` starts LocalStack, then connects it to that network with alias `localstack`
-3. SAM containers (start-api, start-lambda) join the same network via `.with_kwargs(network=docker_network)`
-4. Lambda code inside SAM reaches LocalStack at `http://localstack:4566` — injected via `sam_env_vars` as `AWS_ENDPOINT_URL`
+3. SAM containers (start-api, start-lambda) are connected **after** `.start()` via `_connect_container_with_alias` (see `fixtures/_sam_container.py`) with DNS aliases `sam-api` / `sam-lambda`. Aliases matter: Lambda A running inside a SAM-spawned container resolves `sam-lambda` reliably on Linux, where `host.docker.internal` is not available by default for SAM-spawned Lambda containers.
+4. Lambda code inside SAM reaches LocalStack at `http://localstack:4566` and the local Lambda runtime at `http://sam-lambda:3001` — injected as per-service `AWS_ENDPOINT_URL_<SERVICE>` variables (boto3 ≥ 1.28 picks these up automatically).
+
+### Per-service endpoint env vars (breaking change in 0.3.0)
+
+`sam_env_vars` no longer emits a global `AWS_ENDPOINT_URL`. It sets:
+- `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_SQS`, `AWS_ENDPOINT_URL_SNS` → LocalStack
+- `AWS_ENDPOINT_URL_LAMBDA` → `http://sam-lambda:{settings.lambda_port}`
+
+This lets Lambda-to-Lambda `boto3.client("lambda").invoke(...)` calls reach the SAM local-lambda runtime instead of LocalStack — a prerequisite for the `samstack.mock` use case. Lambda code consuming these env vars needs no `endpoint_url=` kwarg: boto3 auto-reads them.
 
 ### SAM containers
 
@@ -137,9 +145,23 @@ These fixtures exist specifically to be overridden in child `conftest.py`:
 - `sam_api_extra_args` / `sam_lambda_extra_args` — append extra CLI flags
 - `localstack_container`, `docker_network`, `localstack_endpoint` — swap infrastructure
 
-### Test fixture Lambda
+### Test fixture Lambdas
 
-`tests/fixtures/hello_world/` contains a minimal Lambda + `template.yaml` used by the library's own integration tests. It is not a Python package. The handler (`src/handler.py`) handles GET `/hello` → 200, POST `/hello` → writes to S3 → 201, direct invoke → 200. Tests in `tests/conftest.py` extend `sam_env_vars` to inject `TEST_BUCKET` before containers start.
+`tests/fixtures/hello_world/` — single Lambda + `template.yaml` exercised by `tests/test_sam_api.py`, `tests/test_sam_lambda.py`, and `tests/test_sam_build.py`. Handler: GET `/hello` → 200, POST `/hello` → write to S3 → 201, direct invoke → 200.
+
+`tests/fixtures/multi_lambda/` — two Lambdas exercising the `samstack.mock` flow. `template.test.yaml` declares `LambdaAFunction` (real, under `src/lambda_a/`) and `MockBFunction` (test-only spy, under `tests/mocks/mock_b/`). Lambda A forwards requests to Mock B via both HTTP (through API Gateway at `/mock-b/{proxy+}`) and boto3 `lambda_client.invoke`. `tests/mocks/mock_b/handler.py` inlines the body of `samstack.mock.spy_handler` — real user projects use the 2-line `from samstack.mock import spy_handler as handler` form with `samstack` in their mock's `requirements.txt`; the fixture inlines the logic so `sam build` doesn't need to resolve the library via PyPI during the repo's own tests.
+
+Run multi_lambda integration suite in isolation (separate pytest session — its `samstack_settings` conflicts with the root `tests/conftest.py`): `uv run pytest tests/multi_lambda/ -v --timeout=300`.
+
+### `samstack.mock` module
+
+Public surface:
+- `samstack.mock.spy_handler(event, context)` — Lambda-side handler; depends only on stdlib + boto3. Writes each event to `s3://{MOCK_SPY_BUCKET}/spy/{MOCK_FUNCTION_NAME}/<ts>-<uuid>.json`. Reads queued responses from `mock-responses/{name}/queue.json` (JSON list — pop head, write back remainder).
+- `samstack.mock.Call` / `CallList` — frozen dataclass + sequence wrapper with `.one` / `.last` / `.matching(**filters)` assertion helpers (avoids index-based assertions).
+- `samstack.mock.LambdaMock` — test-side handle: `.calls`, `.clear()`, `.next_response(resp)`, `.response_queue([resp, ...])`.
+- `samstack.mock.make_lambda_mock` — session-scoped factory fixture (re-exported from `plugin.py`). Creates a spy bucket (or reuses one) and mutates `sam_env_vars[function_name]` to inject `MOCK_SPY_BUCKET`, `MOCK_FUNCTION_NAME`, `AWS_ENDPOINT_URL_S3`. Must be resolved **before** `sam_build` runs.
+
+User pattern: session fixture calls `make_lambda_mock(...)`, function-scoped wrapper calls `.clear()` before yielding — gives parametrize-safe isolation without re-creating the bucket.
 
 ### `_process.py` utilities
 
@@ -148,7 +170,7 @@ These fixtures exist specifically to be overridden in child `conftest.py`:
 - `stream_logs_to_file(container, log_path)` — daemon thread streaming container logs; accepts a Docker SDK container object (not an ID string)
 - `run_one_shot_container` — runs a container to completion (used for `sam build`), returns `(logs, exit_code)`
 
-`fixtures/_sam_container.py` — shared helpers for `sam_api` and `sam_lambda`: `build_sam_args()` (CLI arg list), `create_sam_container()` (full container builder), `_run_sam_service()` (context manager — starts a SAM container, streams logs, waits for readiness, yields endpoint URL, stops on exit), `DOCKER_SOCKET` constant. Edit this when changing how SAM containers are configured.
+`fixtures/_sam_container.py` — shared helpers for `sam_api` and `sam_lambda`: `build_sam_args()` (CLI arg list), `create_sam_container()` (container builder — intentionally does **not** pre-attach to `docker_network`; caller attaches with an alias after `.start()`), `_connect_container_with_alias()` / `_disconnect_container()` (network alias wiring, mirrors `localstack.py`), `_run_sam_service()` (context manager — starts container, attaches with alias, streams logs, waits for readiness, yields endpoint URL, disconnects + stops on exit), `DOCKER_SOCKET` constant. The `network_alias` parameter is mandatory on `_run_sam_service` — pass `"sam-api"` or `"sam-lambda"` to match the convention other containers rely on.
 
 `_constants.py` — internal constants shared across fixtures: `LOCALSTACK_ACCESS_KEY` / `LOCALSTACK_SECRET_KEY` (both `"test"` — LocalStack's documented default). Import from here; do not re-define per-module.
 

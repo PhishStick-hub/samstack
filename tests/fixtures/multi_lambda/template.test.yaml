@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: samstack multi-lambda mock integration fixture
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+    Runtime: python3.13
+
+Resources:
+  LambdaAFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LambdaAFunction
+      CodeUri: src/lambda_a/
+      Handler: handler.handler
+      Events:
+        LambdaAHttp:
+          Type: Api
+          Properties:
+            Path: /lambda-a/{proxy+}
+            Method: ANY
+
+  MockBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: MockBFunction
+      CodeUri: tests/mocks/mock_b/
+      Handler: handler.handler
+      Events:
+        MockBHttp:
+          Type: Api
+          Properties:
+            Path: /mock-b/{proxy+}
+            Method: ANY

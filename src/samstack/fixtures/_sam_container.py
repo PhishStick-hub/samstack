@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 import platform
+import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Literal
 
+import docker as docker_sdk
 from testcontainers.core.container import DockerContainer
 
 from samstack._process import stream_logs_to_file, wait_for_http, wait_for_port
@@ -57,6 +59,30 @@ def build_sam_args(
     ]
 
 
+def _connect_container_with_alias(
+    client: docker_sdk.DockerClient,
+    network_name: str,
+    container: DockerContainer,
+    alias: str,
+) -> None:
+    """Connect a running container to the shared network with a DNS alias."""
+    network = client.networks.get(network_name)
+    inner = container.get_wrapped_container()
+    assert inner is not None, "SAM container failed to start"
+    network.connect(inner.id, aliases=[alias])
+
+
+def _disconnect_container(
+    client: docker_sdk.DockerClient,
+    network_name: str,
+    container: DockerContainer,
+) -> None:
+    network = client.networks.get(network_name)
+    inner = container.get_wrapped_container()
+    if inner is not None:
+        network.disconnect(inner.id, force=True)
+
+
 @contextmanager
 def _run_sam_service(
     settings: SamStackSettings,
@@ -68,6 +94,7 @@ def _run_sam_service(
     fixture_extra_args: list[str],
     log_filename: str,
     wait_mode: Literal["http", "port"],
+    network_alias: str,
 ) -> Iterator[str]:
     """Start a `sam local <subcommand>` container and yield its endpoint URL."""
     log_dir = settings.project_root / settings.log_dir
@@ -97,6 +124,13 @@ def _run_sam_service(
     assert inner is not None, "SAM container failed to start"
     stream_logs_to_file(inner, log_path)
 
+    client = docker_sdk.from_env()
+    try:
+        _connect_container_with_alias(client, docker_network, container, network_alias)
+    except Exception:
+        container.stop()
+        raise
+
     host_port = int(container.get_exposed_port(port))
     if wait_mode == "http":
         wait_for_http("127.0.0.1", host_port, log_path=log_path, timeout=120.0)
@@ -106,6 +140,13 @@ def _run_sam_service(
     try:
         yield f"http://127.0.0.1:{host_port}"
     finally:
+        try:
+            _disconnect_container(client, docker_network, container)
+        except Exception as exc:
+            warnings.warn(
+                f"samstack: failed to disconnect SAM container from network '{docker_network}': {exc}",
+                stacklevel=1,
+            )
         container.stop()
 
 
@@ -116,11 +157,15 @@ def create_sam_container(
     port: int,
     command: list[str],
 ) -> DockerContainer:
-    """Build a DockerContainer for `sam local start-*` with all standard mounts and env."""
+    """Build a DockerContainer for `sam local start-*` with all standard mounts and env.
+
+    The container is NOT connected to `docker_network` at creation time — the caller
+    attaches it after `.start()` via `_connect_container_with_alias` so that a DNS
+    alias can be set on the network connection.
+    """
     return (
         DockerContainer(settings.sam_image)
         .with_kwargs(
-            network=docker_network,
             extra_hosts=_extra_hosts(),
             working_dir=host_path,
         )

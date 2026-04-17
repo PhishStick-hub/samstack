@@ -44,6 +44,7 @@ from samstack.fixtures.sam_lambda import (
     sam_lambda_endpoint,
     sam_lambda_extra_args,
 )
+from samstack.mock.fixture import make_lambda_mock
 from samstack.settings import SamStackSettings, load_settings
 
 __all__ = [
@@ -56,6 +57,7 @@ __all__ = [
     "localstack_container",
     "localstack_endpoint",
     "make_dynamodb_table",
+    "make_lambda_mock",
     "make_s3_bucket",
     "make_sns_topic",
     "make_sqs_queue",
