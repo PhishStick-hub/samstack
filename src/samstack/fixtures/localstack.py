@@ -11,6 +11,7 @@ import pytest
 from testcontainers.localstack import LocalStackContainer
 
 from samstack._errors import DockerNetworkError
+from samstack._process import stream_logs_to_file
 from samstack.fixtures._sam_container import DOCKER_SOCKET
 from samstack.settings import SamStackSettings
 
@@ -99,6 +100,12 @@ def localstack_container(
     container = LocalStackContainer(image=samstack_settings.localstack_image)
     container.with_volume_mapping(DOCKER_SOCKET, DOCKER_SOCKET, "rw")
     container.start()
+
+    log_dir = samstack_settings.project_root / samstack_settings.log_dir
+    log_dir.mkdir(parents=True, exist_ok=True)
+    inner = container.get_wrapped_container()
+    assert inner is not None, "LocalStack container failed to start"
+    stream_logs_to_file(inner, log_dir / "localstack.log")
 
     client = docker_sdk.from_env()
     try:

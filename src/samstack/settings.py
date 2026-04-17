@@ -30,7 +30,7 @@ class SamStackSettings:
     api_port: int = 3000
     lambda_port: int = 3001
     localstack_image: str = "localstack/localstack:4"
-    log_dir: str = "logs/sam"
+    log_dir: str = "logs"
     build_args: list[str] = field(default_factory=list)
     add_gitignore: bool = True
     start_api_args: list[str] = field(default_factory=list)

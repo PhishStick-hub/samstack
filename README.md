@@ -218,7 +218,7 @@ region            = "us-east-1"
 api_port          = 3000
 lambda_port       = 3001
 localstack_image  = "localstack/localstack:4"
-log_dir           = "logs/sam"
+log_dir           = "logs"
 build_args        = []
 start_api_args    = []
 start_lambda_args = []
@@ -234,7 +234,7 @@ architecture      = "arm64"              # auto-detected; override if needed
 | `api_port` | int | `3000` | Host port mapped to `sam local start-api`. |
 | `lambda_port` | int | `3001` | Host port mapped to `sam local start-lambda`. |
 | `localstack_image` | string | `"localstack/localstack:4"` | LocalStack Docker image. See [LocalStack image versions](#localstack-image-versions). |
-| `log_dir` | string | `"logs/sam"` | Directory (relative to `project_root`) for SAM logs and `env_vars.json`. |
+| `log_dir` | string | `"logs"` | Directory (relative to `project_root`) for SAM and LocalStack logs and `env_vars.json`. |
 | `build_args` | list[string] | `[]` | Extra CLI args appended to `sam build`. |
 | `start_api_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-api`. |
 | `start_lambda_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-lambda`. |
@@ -615,10 +615,11 @@ Full list: [hub.docker.com/r/localstack/localstack/tags](https://hub.docker.com/
 
 ## Logs
 
-SAM and build output is streamed to `{log_dir}/` (default `logs/sam/`):
+SAM and LocalStack output is streamed to `{log_dir}/` (default `logs/`):
 
 ```
-logs/sam/
+logs/
+├── localstack.log     # LocalStack container stdout + stderr
 ├── start-api.log      # sam local start-api stdout + Lambda invocation logs
 ├── start-lambda.log   # sam local start-lambda stdout
 └── env_vars.json      # generated env vars file passed to SAM
