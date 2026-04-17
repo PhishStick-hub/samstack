@@ -28,7 +28,7 @@ uv run ty check
 uv run ruff check . && uv run ruff format --check . && uv run ty check
 
 # Unit tests only (no Docker required)
-uv run pytest tests/unit/ tests/test_settings.py tests/test_process.py tests/test_errors.py -v
+uv run pytest tests/unit/ tests/test_settings.py tests/test_process.py tests/test_errors.py tests/test_plugin.py -v
 
 # Single test
 uv run pytest tests/test_settings.py::test_defaults_applied -v
@@ -133,7 +133,7 @@ The `env_vars.json` file is written to `{project_root}/{log_dir}/` by `sam_build
 
 ### Plugin registration
 
-`plugin.py` is the `pytest11` entry point. It re-exports all fixtures from the four `fixtures/` modules so pytest discovers them automatically — child projects get all fixtures without any imports. `samstack_settings` is defined directly in `plugin.py` and searches upward from `Path.cwd()` for `pyproject.toml`.
+`plugin.py` is the `pytest11` entry point. It re-exports all fixtures from the four `fixtures/` modules so pytest discovers them automatically — child projects get all fixtures without any imports. The upward pyproject.toml search is extracted into `_find_settings()` (testable without pytest DI); `samstack_settings` fixture delegates to it.
 
 ### Settings
 
@@ -172,7 +172,7 @@ User pattern: session fixture calls `make_lambda_mock(...)`, function-scoped wra
 - `stream_logs_to_file(container, log_path)` — daemon thread streaming container logs; accepts a Docker SDK container object (not an ID string)
 - `run_one_shot_container` — runs a container to completion (used for `sam build`), returns `(logs, exit_code)`
 
-`fixtures/_sam_container.py` — shared helpers for `sam_api` and `sam_lambda`: `build_sam_args()` (CLI arg list), `create_sam_container()` (container builder — intentionally does **not** pre-attach to `docker_network`; caller attaches with an alias after `.start()`), `_connect_container_with_alias()` / `_disconnect_container()` (network alias wiring, mirrors `localstack.py`), `_run_sam_service()` (context manager — starts container, attaches with alias, streams logs, waits for readiness, yields endpoint URL, disconnects + stops on exit), `DOCKER_SOCKET` constant. The `network_alias` parameter is mandatory on `_run_sam_service` — pass `"sam-api"` or `"sam-lambda"` to match the convention other containers rely on.
+`fixtures/_sam_container.py` — shared helpers for `sam_api` and `sam_lambda`: `build_sam_args()` (CLI arg list), `create_sam_container()` (container builder — intentionally does **not** pre-attach to `docker_network`; caller attaches with an alias after `.start()`), `_connect_container_with_alias()` / `_disconnect_container_from_network()` (network alias wiring — `localstack.py` imports these; they are the single source of truth for container network management), `_run_sam_service()` (context manager — starts container, attaches with alias, streams logs, waits for readiness, yields endpoint URL, disconnects + stops on exit), `DOCKER_SOCKET` constant. The `network_alias` parameter is mandatory on `_run_sam_service` — pass `"sam-api"` or `"sam-lambda"` to match the convention other containers rely on.
 
 `_constants.py` — internal constants shared across fixtures: `LOCALSTACK_ACCESS_KEY` / `LOCALSTACK_SECRET_KEY` (both `"test"` — LocalStack's documented default). Import from here; do not re-define per-module.
 
