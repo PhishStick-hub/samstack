@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.0](https://github.com/PhishStick-hub/samstack/compare/v0.2.0...v1.0.0) (2026-04-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* sam_env_vars no longer sets a global AWS_ENDPOINT_URL. Per-service AWS_ENDPOINT_URL_<SERVICE> variables are emitted instead, with AWS_ENDPOINT_URL_LAMBDA pointing at the local SAM lambda runtime so Lambda-to-Lambda invokes stay in SAM rather than falling into LocalStack. Lambda code relying on the old variable must migrate.
+
+### Features
+
+* **logs:** consolidate all service logs under logs/ and stream LocalStack ([0229a49](https://github.com/PhishStick-hub/samstack/commit/0229a49af4a46c068fe98332f4551f894110a5e8))
+* multi-lambda mock support with per-service endpoint routing ([007e5a0](https://github.com/PhishStick-hub/samstack/commit/007e5a05c4e41da1bffeba0c7532eb83bbb8704e))
+
+
+### Bug Fixes
+
+* **mock:** declare injected env vars in templates + autouse mock fixture ([853ca43](https://github.com/PhishStick-hub/samstack/commit/853ca439b3afa762163d0a53315f7672d2b60880))
+
+
+### Documentation
+
+* **claude:** sync CLAUDE.md with refactor changes ([a788616](https://github.com/PhishStick-hub/samstack/commit/a788616498fbf6bb0cc6ee0e2067693c2af98d58))
+
 ## [0.2.0](https://github.com/PhishStick-hub/samstack/compare/v0.1.3...v0.2.0) (2026-04-15)
 
 
