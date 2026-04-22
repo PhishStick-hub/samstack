@@ -100,3 +100,15 @@ class TestCallList:
     def test_iteration(self) -> None:
         seq = [_call(path="/a"), _call(path="/b")]
         assert [c.path for c in CallList(seq)] == ["/a", "/b"]
+
+    def test_int_index_returns_call(self) -> None:
+        calls = CallList([_call(path="/a"), _call(path="/b")])
+        item = calls[0]
+        assert isinstance(item, Call)
+        assert item.path == "/a"
+
+    def test_slice_returns_calllist(self) -> None:
+        calls = CallList([_call(path="/a"), _call(path="/b"), _call(path="/c")])
+        sliced = calls[1:]
+        assert isinstance(sliced, CallList)
+        assert [c.path for c in sliced] == ["/b", "/c"]

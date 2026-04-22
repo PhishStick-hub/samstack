@@ -31,7 +31,7 @@ def _safe_cleanup(description: str) -> Iterator[None]:
     except Exception as exc:
         warnings.warn(
             f"samstack: failed to clean up {description}: {exc}",
-            stacklevel=1,
+            stacklevel=2,
         )
 
 

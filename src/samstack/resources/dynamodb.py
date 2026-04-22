@@ -57,21 +57,38 @@ class DynamoTable:
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
         """
-        Query items by key condition expression.
+        Query items by key condition expression. Paginates through all matching items.
 
         Args:
             key_condition: KeyConditionExpression string, e.g. ``"pk = :pk"``
             values: ExpressionAttributeValues dict, e.g. ``{":pk": "val"}``
             **kwargs: Extra args forwarded to boto3 (e.g. ``IndexName``)
         """
+        items: list[dict[str, Any]] = []
         resp = self._table.query(
             KeyConditionExpression=key_condition,
             ExpressionAttributeValues=values,
             **kwargs,
         )
-        return resp["Items"]
+        items.extend(resp["Items"])
+        while "LastEvaluatedKey" in resp:
+            resp = self._table.query(
+                KeyConditionExpression=key_condition,
+                ExpressionAttributeValues=values,
+                ExclusiveStartKey=resp["LastEvaluatedKey"],
+                **kwargs,
+            )
+            items.extend(resp["Items"])
+        return items
 
     def scan(self, **kwargs: Any) -> list[dict[str, Any]]:
-        """Scan all items, with optional filter kwargs forwarded to boto3."""
+        """Scan all items (paginates through all pages), with optional filter kwargs forwarded to boto3."""
+        items: list[dict[str, Any]] = []
         resp = self._table.scan(**kwargs)
-        return resp["Items"]
+        items.extend(resp["Items"])
+        while "LastEvaluatedKey" in resp:
+            resp = self._table.scan(
+                ExclusiveStartKey=resp["LastEvaluatedKey"], **kwargs
+            )
+            items.extend(resp["Items"])
+        return items

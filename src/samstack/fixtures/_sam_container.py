@@ -146,7 +146,7 @@ def _run_sam_service(
             except Exception as exc:
                 warnings.warn(
                     f"samstack: failed to disconnect SAM container from network '{docker_network}': {exc}",
-                    stacklevel=1,
+                    stacklevel=2,
                 )
         container.stop()
 

@@ -126,3 +126,19 @@ class TestSpyHandler:
     def test_missing_env_raises(self, s3_stub: MagicMock) -> None:
         with pytest.raises(RuntimeError):
             mh.spy_handler({}, None)
+
+    def test_default_response_is_fresh_copy(
+        self, env: None, s3_stub: MagicMock
+    ) -> None:
+        """Regression: default HTTP response must not be the module-level dict.
+
+        Warm Lambda reuses the process; mutating the returned dict must not
+        pollute the next invocation.
+        """
+        first = mh.spy_handler({"httpMethod": "GET", "path": "/x"}, None)
+        first["statusCode"] = 500
+        first["_extra"] = "tampered"
+        second = mh.spy_handler({"httpMethod": "GET", "path": "/x"}, None)
+        assert second["statusCode"] == 200
+        assert "_extra" not in second
+        assert first is not second

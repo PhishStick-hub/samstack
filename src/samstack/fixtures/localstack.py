@@ -37,7 +37,7 @@ def _stop_network_container(
     except Exception as exc:
         warnings.warn(
             f"samstack: failed to stop container during network teardown: {exc}",
-            stacklevel=1,
+            stacklevel=2,
         )
         with contextlib.suppress(Exception):
             network.disconnect(container, force=True)
@@ -52,7 +52,7 @@ def _teardown_network(network: docker_sdk.models.networks.Network, name: str) ->
     except Exception as exc:
         warnings.warn(
             f"samstack: failed to clean up Docker network '{name}': {exc}",
-            stacklevel=1,
+            stacklevel=2,
         )
 
 
@@ -115,7 +115,7 @@ def localstack_container(
         except Exception as exc:
             warnings.warn(
                 f"samstack: failed to disconnect LocalStack from network '{docker_network}': {exc}",
-                stacklevel=1,
+                stacklevel=2,
             )
         container.stop()
 
