@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0](https://github.com/PhishStick-hub/samstack/compare/v1.0.0...v2.0.0) (2026-04-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sqs:** SqsQueue.receive(max_messages=, wait_seconds=) is now SqsQueue.receive(max=, wait=). External callers using the old keyword names must update. Default max is now 10 (was 1) and default wait is now 1 (was 0).
+
+### Features
+
+* **sqs:** align SqsQueue.receive signature with docs ([a93da22](https://github.com/PhishStick-hub/samstack/commit/a93da223ddcbaac923b5a4d1f6551ad7b1f2f2cf))
+
+
+### Bug Fixes
+
+* resolve critical + high defects from python review ([a2958e2](https://github.com/PhishStick-hub/samstack/commit/a2958e2cea19b57d30ad35ee3bd7a7cf2e3e0ae7))
+* resolve medium + H4 issues from python review ([b701ca6](https://github.com/PhishStick-hub/samstack/commit/b701ca6537ff4cce97c0059db7d47b635e26af7d))
+* resolve python-review critical, high, and medium defects ([021cf5a](https://github.com/PhishStick-hub/samstack/commit/021cf5ab1ec3d69ae18627582021b6f4dbc219df))
+
+
+### Documentation
+
+* update SqsQueue.receive() signature in README examples ([7908609](https://github.com/PhishStick-hub/samstack/commit/79086096bc33b9ec086d650614577525ff51bf8b))
+
 ## [1.0.0](https://github.com/PhishStick-hub/samstack/compare/v0.2.0...v1.0.0) (2026-04-17)
 
 
