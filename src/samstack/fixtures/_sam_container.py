@@ -10,6 +10,7 @@ from typing import Literal
 import docker as docker_sdk
 from testcontainers.core.container import DockerContainer
 
+from samstack._errors import SamStartupError
 from samstack._process import stream_logs_to_file, wait_for_http, wait_for_port
 from samstack.settings import SamStackSettings
 
@@ -68,7 +69,8 @@ def _connect_container_with_alias(
     """Connect a running container to the shared network with a DNS alias."""
     network = client.networks.get(network_name)
     inner = container.get_wrapped_container()
-    assert inner is not None, "SAM container failed to start"
+    if inner is None:
+        raise RuntimeError("SAM container failed to start before network attach")
     network.connect(inner.id, aliases=[alias])
 
 
@@ -121,32 +123,31 @@ def _run_sam_service(
     )
     container.start()
     inner = container.get_wrapped_container()
-    assert inner is not None, "SAM container failed to start"
+    if inner is None:
+        container.stop()
+        raise SamStartupError(port=port, log_tail="container exited before start")
     stream_logs_to_file(inner, log_path)
 
     client = docker_sdk.from_env()
+    connected = False
     try:
         _connect_container_with_alias(client, docker_network, container, network_alias)
-    except Exception:
-        container.stop()
-        raise
-
-    host_port = int(container.get_exposed_port(port))
-    if wait_mode == "http":
-        wait_for_http("127.0.0.1", host_port, log_path=log_path, timeout=120.0)
-    else:
-        wait_for_port("127.0.0.1", host_port, log_path=log_path, timeout=120.0)
-
-    try:
+        connected = True
+        host_port = int(container.get_exposed_port(port))
+        if wait_mode == "http":
+            wait_for_http("127.0.0.1", host_port, log_path=log_path, timeout=120.0)
+        else:
+            wait_for_port("127.0.0.1", host_port, log_path=log_path, timeout=120.0)
         yield f"http://127.0.0.1:{host_port}"
     finally:
-        try:
-            _disconnect_container_from_network(client, docker_network, container)
-        except Exception as exc:
-            warnings.warn(
-                f"samstack: failed to disconnect SAM container from network '{docker_network}': {exc}",
-                stacklevel=1,
-            )
+        if connected:
+            try:
+                _disconnect_container_from_network(client, docker_network, container)
+            except Exception as exc:
+                warnings.warn(
+                    f"samstack: failed to disconnect SAM container from network '{docker_network}': {exc}",
+                    stacklevel=1,
+                )
         container.stop()
 
 
