@@ -188,7 +188,7 @@ table.client                                   # → DynamoDBClient (raw escape 
 ```python
 queue.send("hello")                            # str | dict → message ID
 queue.send({"task": "run"}, DelaySeconds=5)   # kwargs forwarded to boto3
-queue.receive(max_messages=10, wait_seconds=5) # → list[dict]
+queue.receive(max=10, wait=5)                  # → list[dict]
 queue.purge()
 queue.url                                      # → str
 queue.client                                   # → SQSClient (raw escape hatch)
@@ -333,7 +333,7 @@ def test_upload_then_list(s3_bucket) -> None:
 
 def test_queue_round_trip(sqs_queue) -> None:
     sqs_queue.send({"job": "process"})
-    messages = sqs_queue.receive(max_messages=1, wait_seconds=5)
+    messages = sqs_queue.receive(max=1, wait=5)
     assert len(messages) == 1
 ```
 
