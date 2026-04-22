@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, overload
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,13 @@ class CallList(Sequence[Call]):
     def __iter__(self) -> Iterator[Call]:
         return iter(self._calls)
 
-    def __getitem__(self, index: int | slice) -> Any:
+    @overload
+    def __getitem__(self, index: int) -> Call: ...
+    @overload
+    def __getitem__(self, index: slice) -> CallList: ...
+    def __getitem__(self, index: int | slice) -> Call | CallList:
+        if isinstance(index, slice):
+            return CallList(self._calls[index])
         return self._calls[index]
 
     def __repr__(self) -> str:

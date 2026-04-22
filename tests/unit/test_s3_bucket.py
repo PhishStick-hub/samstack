@@ -82,11 +82,19 @@ class TestS3BucketDelete:
         )  # type: ignore[attr-defined]
 
 
+def _install_paginator(mock_client: MagicMock, pages: list[dict]) -> MagicMock:
+    """Wire mock_client.get_paginator('list_objects_v2').paginate(...) to yield pages."""
+    paginator = MagicMock()
+    paginator.paginate.return_value = iter(pages)
+    mock_client.get_paginator.return_value = paginator  # type: ignore[attr-defined]
+    return paginator
+
+
 class TestS3BucketList:
     def test_list_keys_empty_bucket_returns_empty(
         self, bucket: S3Bucket, mock_client: MagicMock
     ) -> None:
-        mock_client.list_objects_v2.return_value = {}  # type: ignore[attr-defined]
+        _install_paginator(mock_client, [{}])
 
         result = bucket.list_keys()
 
@@ -95,9 +103,9 @@ class TestS3BucketList:
     def test_list_keys_returns_keys(
         self, bucket: S3Bucket, mock_client: MagicMock
     ) -> None:
-        mock_client.list_objects_v2.return_value = {  # type: ignore[attr-defined]
-            "Contents": [{"Key": "a.txt"}, {"Key": "b.txt"}]
-        }
+        _install_paginator(
+            mock_client, [{"Contents": [{"Key": "a.txt"}, {"Key": "b.txt"}]}]
+        )
 
         result = bucket.list_keys()
 
@@ -106,16 +114,34 @@ class TestS3BucketList:
     def test_list_keys_with_prefix(
         self, bucket: S3Bucket, mock_client: MagicMock
     ) -> None:
-        mock_client.list_objects_v2.return_value = {  # type: ignore[attr-defined]
-            "Contents": [{"Key": "uploads/x.json"}]
-        }
+        paginator = _install_paginator(
+            mock_client, [{"Contents": [{"Key": "uploads/x.json"}]}]
+        )
 
         result = bucket.list_keys(prefix="uploads/")
 
-        mock_client.list_objects_v2.assert_called_once_with(  # type: ignore[attr-defined]
+        mock_client.get_paginator.assert_called_once_with("list_objects_v2")  # type: ignore[attr-defined]
+        paginator.paginate.assert_called_once_with(
             Bucket="test-bucket", Prefix="uploads/"
         )
         assert result == ["uploads/x.json"]
+
+    def test_list_keys_paginates_across_multiple_pages(
+        self, bucket: S3Bucket, mock_client: MagicMock
+    ) -> None:
+        """Regression: list_objects_v2 caps at 1000 keys. list_keys must walk all pages."""
+        _install_paginator(
+            mock_client,
+            [
+                {"Contents": [{"Key": f"k{i}"} for i in range(1000)]},
+                {"Contents": [{"Key": "k1000"}, {"Key": "k1001"}]},
+            ],
+        )
+
+        result = bucket.list_keys()
+
+        assert len(result) == 1002
+        assert result[-1] == "k1001"
 
 
 class TestS3BucketProperties:

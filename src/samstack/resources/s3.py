@@ -46,6 +46,9 @@ class S3Bucket:
         self._client.delete_object(Bucket=self._name, Key=key)
 
     def list_keys(self, prefix: str = "") -> list[str]:
-        """List object keys, optionally filtered by prefix."""
-        resp = self._client.list_objects_v2(Bucket=self._name, Prefix=prefix)
-        return [obj["Key"] for obj in resp.get("Contents", [])]
+        """List object keys, optionally filtered by prefix. Paginates through all pages."""
+        paginator = self._client.get_paginator("list_objects_v2")
+        keys: list[str] = []
+        for page in paginator.paginate(Bucket=self._name, Prefix=prefix):
+            keys.extend(obj["Key"] for obj in page.get("Contents", []))
+        return keys

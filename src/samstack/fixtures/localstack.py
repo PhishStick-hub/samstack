@@ -10,7 +10,7 @@ import docker as docker_sdk
 import pytest
 from testcontainers.localstack import LocalStackContainer
 
-from samstack._errors import DockerNetworkError
+from samstack._errors import DockerNetworkError, LocalStackStartupError
 from samstack._process import stream_logs_to_file
 from samstack.fixtures._sam_container import (
     DOCKER_SOCKET,
@@ -37,7 +37,7 @@ def _stop_network_container(
     except Exception as exc:
         warnings.warn(
             f"samstack: failed to stop container during network teardown: {exc}",
-            stacklevel=1,
+            stacklevel=2,
         )
         with contextlib.suppress(Exception):
             network.disconnect(container, force=True)
@@ -52,7 +52,7 @@ def _teardown_network(network: docker_sdk.models.networks.Network, name: str) ->
     except Exception as exc:
         warnings.warn(
             f"samstack: failed to clean up Docker network '{name}': {exc}",
-            stacklevel=1,
+            stacklevel=2,
         )
 
 
@@ -95,7 +95,9 @@ def localstack_container(
     log_dir = samstack_settings.project_root / samstack_settings.log_dir
     log_dir.mkdir(parents=True, exist_ok=True)
     inner = container.get_wrapped_container()
-    assert inner is not None, "LocalStack container failed to start"
+    if inner is None:
+        container.stop()
+        raise LocalStackStartupError(log_tail="container exited before start")
     stream_logs_to_file(inner, log_dir / "localstack.log")
 
     client = docker_sdk.from_env()
@@ -113,7 +115,7 @@ def localstack_container(
         except Exception as exc:
             warnings.warn(
                 f"samstack: failed to disconnect LocalStack from network '{docker_network}': {exc}",
-                stacklevel=1,
+                stacklevel=2,
             )
         container.stop()
 

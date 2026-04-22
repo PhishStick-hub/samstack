@@ -75,6 +75,20 @@ class TestDynamoTableQuery:
             ExpressionAttributeValues={":id": "a"},
         )
 
+    def test_query_paginates_on_last_evaluated_key(
+        self, table: DynamoTable, mock_table: MagicMock
+    ) -> None:
+        """Regression: DynamoDB caps each page at 1 MB; query must walk LastEvaluatedKey."""
+        mock_table.query.side_effect = [
+            {"Items": [{"id": "1"}], "LastEvaluatedKey": {"id": "1"}},
+            {"Items": [{"id": "2"}]},
+        ]
+
+        result = table.query("pk = :pk", {":pk": "x"})
+
+        assert result == [{"id": "1"}, {"id": "2"}]
+        assert mock_table.query.call_count == 2
+
     def test_query_forwards_kwargs(
         self, table: DynamoTable, mock_table: MagicMock
     ) -> None:
@@ -109,6 +123,21 @@ class TestDynamoTableScan:
         table.scan(FilterExpression="attr = :val")
 
         mock_table.scan.assert_called_once_with(FilterExpression="attr = :val")
+
+    def test_scan_paginates_on_last_evaluated_key(
+        self, table: DynamoTable, mock_table: MagicMock
+    ) -> None:
+        """Regression: DynamoDB caps each page at 1 MB; scan must walk LastEvaluatedKey."""
+        mock_table.scan.side_effect = [
+            {"Items": [{"id": "a"}], "LastEvaluatedKey": {"id": "a"}},
+            {"Items": [{"id": "b"}], "LastEvaluatedKey": {"id": "b"}},
+            {"Items": [{"id": "c"}]},
+        ]
+
+        result = table.scan()
+
+        assert result == [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+        assert mock_table.scan.call_count == 3
 
 
 class TestDynamoTableProperties:

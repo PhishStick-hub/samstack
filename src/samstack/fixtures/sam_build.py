@@ -8,7 +8,7 @@ import pytest
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamBuildError
 from samstack._process import run_one_shot_container
-from samstack.fixtures._sam_container import DOCKER_SOCKET
+from samstack.fixtures._sam_container import DOCKER_SOCKET, _is_ci
 from samstack.settings import SamStackSettings
 
 
@@ -80,10 +80,11 @@ def sam_build(
     # created by SAM via the Docker socket can also mount it — Docker Desktop
     # only shares /Users (and similar host paths), not paths inside containers.
     host_path = str(samstack_settings.project_root)
+    skip_pull: list[str] = [] if _is_ci() else ["--skip-pull-image"]
     build_cmd = [
         "sam",
         "build",
-        "--skip-pull-image",
+        *skip_pull,
         "--template",
         samstack_settings.template,
         *samstack_settings.build_args,

@@ -164,4 +164,7 @@ def spy_handler(event: dict[str, Any], _context: Any) -> Any:
     queued = _pop_response(client, bucket, name)
     if queued is not None:
         return queued
-    return _DEFAULT_HTTP_RESPONSE if _is_http_event(event) else _DEFAULT_INVOKE_RESPONSE
+    default = (
+        _DEFAULT_HTTP_RESPONSE if _is_http_event(event) else _DEFAULT_INVOKE_RESPONSE
+    )
+    return dict(default)

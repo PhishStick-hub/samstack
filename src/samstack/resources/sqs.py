@@ -34,19 +34,17 @@ class SqsQueue:
         )
         return resp["MessageId"]
 
-    def receive(
-        self, max_messages: int = 1, wait_seconds: int = 0
-    ) -> list[MessageTypeDef]:
+    def receive(self, max: int = 10, wait: int = 1) -> list[MessageTypeDef]:
         """
-        Receive messages from the queue.
+        Receive up to ``max`` messages from the queue, long-polling for ``wait`` seconds.
 
         Returns a list of message dicts (``MessageId``, ``Body``,
         ``ReceiptHandle``, etc). Returns an empty list when the queue is empty.
         """
         resp = self._client.receive_message(
             QueueUrl=self._url,
-            MaxNumberOfMessages=max_messages,
-            WaitTimeSeconds=wait_seconds,
+            MaxNumberOfMessages=max,
+            WaitTimeSeconds=wait,
         )
         return resp.get("Messages", [])
 

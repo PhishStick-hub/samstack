@@ -49,7 +49,7 @@ class LambdaMock:
             except Exception as exc:  # pragma: no cover - defensive
                 warnings.warn(
                     f"samstack: failed to read spy object '{key}': {exc}",
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 continue
             if isinstance(data, dict):
