@@ -68,7 +68,7 @@ class TestSqsQueueReceive:
         messages: list[dict[str, Any]] = [{"MessageId": "m1", "Body": "hi"}]
         mock_client.receive_message.return_value = {"Messages": messages}
 
-        result = queue.receive(max_messages=5, wait_seconds=2)
+        result = queue.receive(max=5, wait=2)
 
         assert result == messages
         mock_client.receive_message.assert_called_once_with(

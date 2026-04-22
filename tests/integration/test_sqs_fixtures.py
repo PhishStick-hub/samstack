@@ -26,7 +26,7 @@ class TestMakeSqsQueue:
     def test_send_receive_str(self, make_sqs_queue: Callable[[str], SqsQueue]) -> None:
         queue = make_sqs_queue("str-test")
         queue.send("ping")
-        messages = queue.receive(max_messages=1, wait_seconds=1)
+        messages = queue.receive(max=1, wait=1)
         assert len(messages) == 1
         assert messages[0]["Body"] == "ping"
 
@@ -34,7 +34,7 @@ class TestMakeSqsQueue:
         queue = make_sqs_queue("dict-test")
         payload = {"action": "create", "id": 42}
         queue.send(payload)
-        messages = queue.receive(max_messages=1, wait_seconds=1)
+        messages = queue.receive(max=1, wait=1)
         assert len(messages) == 1
         assert json.loads(messages[0]["Body"]) == payload
 
@@ -43,19 +43,19 @@ class TestMakeSqsQueue:
         queue.send("msg1")
         queue.send("msg2")
         queue.purge()
-        messages = queue.receive(max_messages=10, wait_seconds=1)
+        messages = queue.receive(max=10, wait=1)
         assert messages == []
 
 
 class TestSqsQueueFunctionScoped:
     def test_send_receive_roundtrip(self, sqs_queue: SqsQueue) -> None:
         sqs_queue.send("test message")
-        messages = sqs_queue.receive(max_messages=1, wait_seconds=1)
+        messages = sqs_queue.receive(max=1, wait=1)
         assert len(messages) == 1
         assert messages[0]["Body"] == "test message"
 
     def test_receive_empty_returns_empty_list(self, sqs_queue: SqsQueue) -> None:
-        result = sqs_queue.receive(max_messages=1, wait_seconds=1)
+        result = sqs_queue.receive(max=1, wait=1)
         assert result == []
 
     def test_client_escape_hatch(self, sqs_queue: SqsQueue) -> None:

@@ -54,7 +54,7 @@ class TestMakeSnsTopic:
         assert sub_arn.startswith("arn:aws:sns:")
 
         topic.publish("from-sns")
-        messages = queue.receive(max_messages=1, wait_seconds=5)
+        messages = queue.receive(max=1, wait=5)
         assert len(messages) == 1
         body = json.loads(messages[0]["Body"])
         assert body["Message"] == "from-sns"
