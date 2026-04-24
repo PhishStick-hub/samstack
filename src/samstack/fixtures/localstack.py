@@ -8,6 +8,9 @@ from uuid import uuid4
 
 import docker as docker_sdk
 import pytest
+from testcontainers.core.config import testcontainers_config
+from testcontainers.core.container import Reaper
+from testcontainers.core.labels import LABEL_SESSION_ID, SESSION_ID
 from testcontainers.localstack import LocalStackContainer
 
 from samstack._errors import DockerNetworkError, LocalStackStartupError
@@ -70,9 +73,18 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
     """Create a Docker bridge network shared by LocalStack and SAM containers."""
     client = docker_sdk.from_env()
     try:
-        network = client.networks.create(docker_network_name, driver="bridge")
+        network = client.networks.create(
+            docker_network_name,
+            driver="bridge",
+            labels={LABEL_SESSION_ID: SESSION_ID},
+        )
     except Exception as exc:
         raise DockerNetworkError(name=docker_network_name, reason=str(exc)) from exc
+    if not testcontainers_config.ryuk_disabled:
+        # Ensure Ryuk exists even when no testcontainers containers are started
+        # (e.g. docker_network-only sessions). The network is already covered by
+        # the session label filter that Reaper registers automatically.
+        Reaper.get_instance()
     try:
         yield docker_network_name
     finally:
