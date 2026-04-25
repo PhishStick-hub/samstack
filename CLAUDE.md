@@ -186,4 +186,4 @@ On Linux, `host.docker.internal` is not available by default. The fixtures add `
 
 ### Lambda container cleanup
 
-SAM creates Lambda runtime containers (via the Docker socket) on `docker_network`. These are not tracked by testcontainers/Ryuk. The `docker_network` fixture teardown stops and removes all containers still connected to the network before destroying it.
+SAM creates Lambda runtime containers (via the Docker socket) on `docker_network`. These are automatically tracked and cleaned up by testcontainers/Ryuk via the `LABEL_SESSION_ID` label. The `docker_network` fixture registers itself with Ryuk on creation, ensuring all containers are cleaned up when the session ends — both on normal teardown and on test crashes.
