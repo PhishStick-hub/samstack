@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.0](https://github.com/PhishStick-hub/samstack/compare/v2.0.0...v2.1.0) (2026-04-25)
+
+
+### Features
+
+* **ryuk:** v1.0 Orphan Container Cleanup — crash-safe Docker infrastructure ([ef76409](https://github.com/PhishStick-hub/samstack/commit/ef7640968129e90e3f31e70a35e4438b2bff54b6))
+* v1.0 Orphan Container Cleanup — Ryuk crash-safe Docker infrastructure ([0ac247f](https://github.com/PhishStick-hub/samstack/commit/0ac247f11a9a6fcdf1143be552dc00b564ff0d2b))
+
 ## [2.0.0](https://github.com/PhishStick-hub/samstack/compare/v1.0.0...v2.0.0) (2026-04-22)
 
 
