@@ -117,6 +117,8 @@ All SAM fixtures are `scope="session"` — Docker containers start once and are 
 | `localstack_endpoint` | `str` | LocalStack base URL, e.g. `http://127.0.0.1:4566` |
 | `sam_env_vars` | `dict` | Env vars injected into all Lambda functions at runtime |
 | `sam_build` | `None` | Runs `sam build`; depended on by `sam_api` and `lambda_client` |
+| `warm_functions` | `list[str]` | Function names to pre-warm. See [Warm containers](#warm-containers). |
+| `warm_api_routes` | `dict[str, str]` | Function name → API route path mapping for HTTP pre-warming. See [Warm containers](#warm-containers). |
 | `sam_lambda_endpoint` | `str` | Raw `start-lambda` URL (used internally by `lambda_client`) |
 | `localstack_container` | `LocalStackContainer` | Running LocalStack testcontainer |
 | `docker_network` | `str` | Name of the shared Docker bridge network |
@@ -223,6 +225,7 @@ build_args        = []
 start_api_args    = []
 start_lambda_args = []
 add_gitignore     = true
+warm_functions    = []                    # functions to pre-warm (default: all)
 architecture      = "arm64"              # auto-detected; override if needed
 ```
 
@@ -239,6 +242,7 @@ architecture      = "arm64"              # auto-detected; override if needed
 | `start_api_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-api`. |
 | `start_lambda_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-lambda`. |
 | `add_gitignore` | bool | `true` | Automatically add `log_dir` to `.gitignore`. |
+| `warm_functions` | list[string] | `[]` | Lambda function names to pre-warm before tests. Empty list preserves `EAGER` behavior (all functions pre-warmed). Non-empty switches to `LAZY` — only listed functions get pre-warmed. See [Warm containers](#warm-containers). |
 | `architecture` | string | auto-detected | Lambda architecture: `"arm64"` or `"x86_64"`. Auto-detected from `platform.machine()` — Apple Silicon / Linux ARM64 → `arm64`, Intel/AMD → `x86_64`. Controls `DOCKER_DEFAULT_PLATFORM` on SAM and build containers. |
 
 ---
@@ -378,6 +382,94 @@ def sam_api_extra_args() -> list[str]:
 def sam_lambda_extra_args() -> list[str]:
     return ["--debug"]
 ```
+
+---
+
+## Warm containers
+
+Controls which Lambda functions get pre-warmed containers before tests execute. Pre-warming eliminates cold-start latency: the first test invocation hits an already-warm container.
+
+Two fixtures control pre-warming:
+
+- **`warm_functions`** — a list of function names. Listed functions get a synthetic `lambda_client.invoke()` call before tests run.
+- **`warm_api_routes`** — a dict mapping function names to HTTP paths (e.g. `{"MyFunc": "/items"}`). Listed functions get a synthetic HTTP GET before tests run.
+
+The two fixtures combine. Here's what happens for each function:
+
+| In `warm_functions`? | In `warm_api_routes`? | Result |
+|---|---|---|
+| ✅ | ❌ | Lambda invoke pre-warm only |
+| ✅ | ✅ | Lambda invoke **+** HTTP GET pre-warm |
+| ❌ | ✅ | **Nothing** — `warm_api_routes` without `warm_functions` is ignored |
+| ❌ | ❌ | Cold start |
+
+When `warm_functions` is empty (the default), `start-lambda` runs in `EAGER` mode — SAM pre-creates containers for **all** functions. When `warm_functions` is non-empty, `start-lambda` switches to `LAZY` mode and only the listed functions are pre-warmed; unlisted functions start cold.
+
+### Examples
+
+**Warm a function for direct Lambda invoke only:**
+
+```python
+# conftest.py
+import pytest
+
+@pytest.fixture(scope="session")
+def warm_functions() -> list[str]:
+    return ["ProcessOrder"]
+```
+
+`ProcessOrder` gets a synthetic `invoke()` before tests. No HTTP pre-warming.
+
+**Warm a function for both Lambda invoke and HTTP:**
+
+```python
+# conftest.py
+import pytest
+
+@pytest.fixture(scope="session")
+def warm_functions() -> list[str]:
+    return ["HelloWorldFunction"]
+
+@pytest.fixture(scope="session")
+def warm_api_routes() -> dict[str, str]:
+    return {"HelloWorldFunction": "/hello"}
+```
+
+`HelloWorldFunction` gets both a synthetic `invoke()` and an HTTP GET to `/hello` before tests.
+
+**Warm multiple functions with mixed strategies:**
+
+```python
+# conftest.py
+import pytest
+
+@pytest.fixture(scope="session")
+def warm_functions() -> list[str]:
+    return ["ProcessOrder", "HelloWorldFunction"]
+
+@pytest.fixture(scope="session")
+def warm_api_routes() -> dict[str, str]:
+    return {"HelloWorldFunction": "/hello"}
+```
+
+- `ProcessOrder` — Lambda invoke only (not in `warm_api_routes`)
+- `HelloWorldFunction` — Lambda invoke + HTTP GET (in both lists)
+
+**Via pyproject.toml (no conftest override needed for simple cases):**
+
+```toml
+[tool.samstack]
+sam_image = "public.ecr.aws/sam/build-python3.13"
+warm_functions = ["ProcessOrder", "SendNotification"]
+```
+
+### Known limitations
+
+- **`--debug-port` is incompatible** with warm containers. SAM CLI (issue [#7308](https://github.com/aws/aws-sam-cli/issues/7308)) does not support port-based debugging when `--warm-containers LAZY` is set. Do not pass `--debug-port` in `sam_api_extra_args` or `sam_lambda_extra_args` when using warm containers.
+- **No auto-discovery** of functions from the SAM template. You must explicitly list function names in `warm_functions` and route paths in `warm_api_routes`. Auto-discovery is planned for v1.2.
+- **No multi-template support** per session. All functions must be declared in the single template referenced by `samstack_settings.template`.
+- **Pre-warming is sequential** — each function or route is warmed one at a time. Large function lists may add noticeable startup time.
+- **Crash test skips on macOS**. The Ryuk reaper process inside Docker Desktop's Linux VM does not reliably detect SIGKILL across the TCP proxy boundary. Warm container crash cleanup is verified on Linux CI.
 
 ---
 

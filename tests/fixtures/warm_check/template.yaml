@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  WarmCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: WarmCheckFunction
+      CodeUri: src/
+      Handler: handler.handler
+      Runtime: python3.13
+      Environment:
+        Variables:
+          AWS_ENDPOINT_URL_S3: ""
+          AWS_ENDPOINT_URL_DYNAMODB: ""
+          AWS_ENDPOINT_URL_SQS: ""
+          AWS_ENDPOINT_URL_SNS: ""
+          AWS_ENDPOINT_URL_LAMBDA: ""
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+      Events:
+        GetWarm:
+          Type: Api
+          Properties:
+            Path: /warm
+            Method: get

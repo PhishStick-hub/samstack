@@ -1,11 +1,73 @@
 from __future__ import annotations
 
+import logging
+import urllib.error
+import urllib.request
 from collections.abc import Iterator
 
 import pytest
 
+from samstack._errors import SamStartupError
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
+
+_logger = logging.getLogger("samstack")
+
+
+def _filter_warm_routes(
+    warm_api_routes: dict[str, str],
+    warm_functions: list[str],
+) -> dict[str, str]:
+    return {k: v for k, v in warm_api_routes.items() if k in warm_functions}
+
+
+def _pre_warm_api_routes(
+    endpoint: str,
+    routes: dict[str, str],
+) -> None:
+    """Send a synthetic GET to each API route to ensure warm containers are ready.
+
+    Prints a summary to stderr, then sends GET requests sequentially.
+    Any HTTP response (2xx, 4xx, 5xx) counts as success — only connection-level
+    errors (timeout, refused, DNS) raise ``SamStartupError``.
+    """
+    if not routes:
+        return
+
+    _logger.info("pre-warming %d API route(s)", len(routes))
+    for func_name, path in routes.items():
+        url = f"{endpoint}{path}"
+        try:
+            urllib.request.urlopen(url, timeout=10.0)  # noqa: S310
+        except urllib.error.HTTPError:
+            pass
+        except (urllib.error.URLError, OSError) as exc:
+            raise SamStartupError(
+                port=0,
+                log_tail=f"Pre-warm HTTP request failed for function "
+                f"'{func_name}' ({url}): {exc}",
+            ) from exc
+
+
+@pytest.fixture(scope="session")
+def warm_api_routes() -> dict[str, str]:
+    """
+    Mapping of Lambda function names to API route paths for HTTP pre-warming.
+
+    Only functions present in BOTH ``warm_functions`` AND ``warm_api_routes``
+    receive synthetic HTTP GET requests before the first test runs. A function
+    in ``warm_api_routes`` but not ``warm_functions`` is ignored.
+
+    Override in your conftest.py:
+
+        @pytest.fixture(scope="session")
+        def warm_api_routes() -> dict[str, str]:
+            return {"HelloWorldFunction": "/hello"}
+
+    Values are route paths only (e.g., ``"/hello"``), not full URLs. The
+    ``sam_api`` endpoint URL is prepended at request time.
+    """
+    return {}
 
 
 @pytest.fixture(scope="session")
@@ -28,6 +90,8 @@ def sam_api(
     sam_build: None,
     docker_network: str,
     sam_api_extra_args: list[str],
+    warm_functions: list[str],
+    warm_api_routes: dict[str, str],
 ) -> Iterator[str]:
     """
     Start `sam local start-api` in Docker. Yields base URL http://127.0.0.1:{api_port}.
@@ -45,4 +109,8 @@ def sam_api(
         wait_mode="http",
         network_alias="sam-api",
     ) as endpoint:
+        _pre_warm_api_routes(
+            endpoint,
+            _filter_warm_routes(warm_api_routes, warm_functions),
+        )
         yield endpoint

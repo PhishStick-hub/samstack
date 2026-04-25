@@ -23,11 +23,17 @@ INTEGRATION_BUCKET = "samstack-integration-test"
 # session makes hello_world tests hit the multi_lambda template (or vice
 # versa). Ignore multi_lambda unless it is explicitly targeted on the CLI.
 def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
-    if "multi_lambda" not in str(collection_path):
-        return None
-    args = config.invocation_params.args
-    explicit = any("multi_lambda" in str(arg) for arg in args)
-    return None if explicit else True
+    path_str = str(collection_path)
+    # multi_lambda/ and warm/ each pin samstack_settings to a different fixture
+    # project. Session-scoped SAM fixtures cache the first resolution, so mixing
+    # suites in one session makes tests hit the wrong template. Ignore them
+    # unless explicitly targeted on the CLI.
+    for suite in ("multi_lambda", "warm"):
+        if suite in path_str:
+            args = config.invocation_params.args
+            explicit = any(suite in str(arg) for arg in args)
+            return None if explicit else True
+    return None
 
 
 @pytest.fixture(scope="session")

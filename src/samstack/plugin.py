@@ -37,8 +37,8 @@ from samstack.fixtures.resources import (
     sqs_queue,
     sqs_resource,
 )
-from samstack.fixtures.sam_api import sam_api, sam_api_extra_args
-from samstack.fixtures.sam_build import sam_build, sam_env_vars
+from samstack.fixtures.sam_api import sam_api, sam_api_extra_args, warm_api_routes
+from samstack.fixtures.sam_build import sam_build, sam_env_vars, warm_functions
 from samstack.fixtures.sam_lambda import (
     lambda_client,
     sam_lambda_endpoint,
@@ -70,6 +70,8 @@ __all__ = [
     "sqs_client",
     "sqs_queue",
     "sqs_resource",
+    "warm_functions",
+    "warm_api_routes",
     "sam_api_extra_args",
     "sam_build",
     "sam_env_vars",
