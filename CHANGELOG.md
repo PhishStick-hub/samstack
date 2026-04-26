@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.0](https://github.com/PhishStick-hub/samstack/compare/v2.1.0...v2.2.0) (2026-04-26)
+
+
+### Features
+
+* per-function warm container control ([57a368a](https://github.com/PhishStick-hub/samstack/commit/57a368a664ad1e45a263b545a1b83253504610e9))
+* per-function warm container control (v2.2.0) ([f917b2a](https://github.com/PhishStick-hub/samstack/commit/f917b2a9abf750412757dfcb6137fccf2d5ee3a0))
+
 ## [2.1.0](https://github.com/PhishStick-hub/samstack/compare/v2.0.0...v2.1.0) (2026-04-25)
 
 
