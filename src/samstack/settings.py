@@ -35,6 +35,7 @@ class SamStackSettings:
     add_gitignore: bool = True
     start_api_args: list[str] = field(default_factory=list)
     start_lambda_args: list[str] = field(default_factory=list)
+    warm_functions: list[str] = field(default_factory=list)
     project_root: Path = field(default_factory=Path.cwd)
     architecture: Literal["arm64", "x86_64"] = field(
         default_factory=_detect_architecture
@@ -72,6 +73,19 @@ def load_settings(project_root: Path) -> SamStackSettings:
             f"architecture must be 'arm64' or 'x86_64', got '{arch}'. "
             "Remove the field to auto-detect from the host machine."
         )
+
+    if "warm_functions" in cfg:
+        warm = cfg["warm_functions"]
+        if not isinstance(warm, list):
+            raise ValueError(
+                f"warm_functions must be a list of strings, got {type(warm).__name__}"
+            )
+        for v in warm:
+            if not isinstance(v, str):
+                raise ValueError(
+                    f"warm_functions must contain only strings, "
+                    f"got element of type {type(v).__name__}"
+                )
 
     # Let the dataclass field defaults be the single source of truth.
     # TOML already parses integers natively; list/bool/str fields pass through unchanged.

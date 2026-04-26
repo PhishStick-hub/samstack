@@ -155,6 +155,10 @@ These fixtures exist specifically to be overridden in child `conftest.py`:
 
 Run multi_lambda integration suite in isolation (separate pytest session — its `samstack_settings` conflicts with the root `tests/conftest.py`): `uv run pytest tests/multi_lambda/ -v --timeout=300`.
 
+`tests/fixtures/warm_check/` — single Lambda with init-marker UUID pattern for warm container verification. `template.yaml` declares `WarmCheckFunction` with a `/warm` GET endpoint. The handler returns `instance_id` (a per-container UUID) so tests can assert two invocations hit the same warm container.
+
+Run warm integration suite in isolation (same `samstack_settings` conflict as multi_lambda): `uv run pytest tests/warm/ -v --timeout=300`.
+
 ### `samstack.mock` module
 
 Public surface:

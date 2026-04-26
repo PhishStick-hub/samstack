@@ -59,6 +59,32 @@ def sam_env_vars(samstack_settings: SamStackSettings) -> dict[str, dict[str, str
 
 
 @pytest.fixture(scope="session")
+def warm_functions(samstack_settings: SamStackSettings) -> list[str]:
+    """
+    List of Lambda function names to pre-warm before tests execute.
+
+    Defaults to ``samstack_settings.warm_functions`` (from ``[tool.samstack]``
+    in pyproject.toml). Override in your conftest.py to specify functions
+    programmatically:
+
+        @pytest.fixture(scope="session")
+        def warm_functions() -> list[str]:
+            return ["MyFuncA", "MyFuncB"]
+
+    Behavior by service:
+
+    - ``start-lambda``: empty list (default) sets ``--warm-containers EAGER``
+      so SAM pre-creates containers for **all** functions (backward
+      compatible). A non-empty list switches to ``LAZY`` and only the listed
+      functions receive a synthetic ``invoke()`` before tests run.
+    - ``start-api``: always runs ``LAZY``. Only functions present in both
+      ``warm_functions`` and ``warm_api_routes`` receive a synthetic HTTP GET
+      before tests run.
+    """
+    return samstack_settings.warm_functions
+
+
+@pytest.fixture(scope="session")
 def sam_build(
     samstack_settings: SamStackSettings,
     sam_env_vars: dict[str, dict[str, str]],
