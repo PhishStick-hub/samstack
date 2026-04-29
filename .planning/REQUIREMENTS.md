@@ -68,34 +68,34 @@ Explicitly excluded from samstack entirely:
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COORD-01 | — | Pending |
-| COORD-02 | — | Pending |
-| COORD-03 | — | Pending |
-| COORD-04 | — | Pending |
-| COORD-05 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| SERV-01 | — | Pending |
-| SERV-02 | — | Pending |
-| SERV-03 | — | Pending |
-| SERV-04 | — | Pending |
-| MOCK-01 | — | Pending |
-| MOCK-02 | — | Pending |
-| MOCK-03 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| TEST-04 | — | Pending |
-| TEST-05 | — | Pending |
+| COORD-01 | Phase 8 | Pending |
+| COORD-02 | Phase 8 | Pending |
+| COORD-03 | Phase 8 | Pending |
+| COORD-04 | Phase 8 | Pending |
+| COORD-05 | Phase 8 | Pending |
+| INFRA-01 | Phase 9 | Pending |
+| INFRA-02 | Phase 9 | Pending |
+| INFRA-03 | Phase 9 | Pending |
+| INFRA-04 | Phase 9 | Pending |
+| INFRA-05 | Phase 9 | Pending |
+| SERV-01 | Phase 10 | Pending |
+| SERV-02 | Phase 10 | Pending |
+| SERV-03 | Phase 10 | Pending |
+| SERV-04 | Phase 10 | Pending |
+| MOCK-01 | Phase 11 | Pending |
+| MOCK-02 | Phase 11 | Pending |
+| MOCK-03 | Phase 11 | Pending |
+| TEST-01 | Phase 12 | Pending |
+| TEST-02 | Phase 12 | Pending |
+| TEST-03 | Phase 12 | Pending |
+| TEST-04 | Phase 12 | Pending |
+| TEST-05 | Phase 12 | Pending |
 
 **Coverage:**
 - v2.3.0 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-30*
-*Last updated: 2026-04-30 after initial definition*
+*Last updated: 2026-04-30 after roadmap creation*
