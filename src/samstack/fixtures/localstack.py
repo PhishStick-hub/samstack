@@ -15,6 +15,14 @@ from testcontainers.localstack import LocalStackContainer
 
 from samstack._errors import DockerNetworkError, LocalStackStartupError
 from samstack._process import stream_logs_to_file
+from samstack._xdist import (
+    acquire_infra_lock,
+    get_worker_id,
+    is_controller,
+    release_infra_lock,
+    wait_for_state_key,
+    write_state_file,
+)
 from samstack.fixtures._sam_container import (
     DOCKER_SOCKET,
     _connect_container_with_alias,
@@ -59,36 +67,74 @@ def _teardown_network(network: docker_sdk.models.networks.Network, name: str) ->
         )
 
 
-@pytest.fixture(scope="session")
-def docker_network_name() -> str:
-    """Return the name for the shared Docker bridge network.
-
-    Override this fixture to use a fixed or externally-managed network name.
-    """
-    return f"samstack-{uuid4().hex[:8]}"
-
-
-@pytest.fixture(scope="session")
-def docker_network(docker_network_name: str) -> Iterator[str]:
-    """Create a Docker bridge network shared by LocalStack and SAM containers."""
+def _create_and_register_network(name: str) -> docker_sdk.models.networks.Network:
+    """Create a Docker bridge network and register with Ryuk if enabled."""
     client = docker_sdk.from_env()
     try:
         network = client.networks.create(
-            docker_network_name,
+            name,
             driver="bridge",
             labels={LABEL_SESSION_ID: SESSION_ID},
         )
     except Exception as exc:
-        raise DockerNetworkError(name=docker_network_name, reason=str(exc)) from exc
+        raise DockerNetworkError(name=name, reason=str(exc)) from exc
     if not testcontainers_config.ryuk_disabled:
-        # Ensure Ryuk exists even when no testcontainers containers are started
-        # (e.g. docker_network-only sessions). The network is already covered by
-        # the session label filter that Reaper registers automatically.
         Reaper.get_instance()
+    return network
+
+
+@pytest.fixture(scope="session")
+def docker_network_name(request: pytest.FixtureRequest) -> str:
+    """Return the name for the shared Docker bridge network.
+
+    Override this fixture to use a fixed or externally-managed network name.
+    Under xdist: gw0/master generates a UUID name; gw1+ reads from shared state.
+    """
+    worker_id = get_worker_id()
+    if is_controller(worker_id):
+        return f"samstack-{uuid4().hex[:8]}"
+    return wait_for_state_key("docker_network", timeout=120)
+
+
+@pytest.fixture(scope="session")
+def docker_network(docker_network_name: str) -> Iterator[str]:
+    """Create a Docker bridge network shared by LocalStack and SAM containers.
+
+    Under xdist: gw0/master creates the network; gw1+ reads from shared state.
+    """
+    worker_id = get_worker_id()
+
+    # === gw1+ path: read from state, no Docker creation ===
+    if not is_controller(worker_id):
+        yield docker_network_name
+        return
+
+    # === gw0 / master path: create Docker infrastructure ===
+    if worker_id == "gw0":
+        if not acquire_infra_lock():
+            yield docker_network_name
+            return
+        try:
+            network = _create_and_register_network(docker_network_name)
+            write_state_file("docker_network", docker_network_name)
+        except Exception:
+            write_state_file(
+                "error",
+                f"Docker network creation failed: {docker_network_name}",
+            )
+            raise
+    else:
+        # master (no xdist) — existing behavior, no state file needed
+        network = _create_and_register_network(docker_network_name)
+
     try:
         yield docker_network_name
     finally:
-        _teardown_network(network, docker_network_name)
+        if worker_id == "gw0":
+            _teardown_network(network, docker_network_name)
+            release_infra_lock()
+        else:
+            _teardown_network(network, docker_network_name)
 
 
 # — LocalStack container -------------------------------------------------------
