@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from samstack._xdist import acquire_infra_lock, get_state_dir, release_infra_lock
+from samstack._xdist import acquire_infra_lock, release_infra_lock
 
 
 def test_acquire_returns_true(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -15,7 +15,9 @@ def test_acquire_returns_true(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
         release_infra_lock()
 
 
-def test_acquire_fails_when_locked(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_acquire_fails_when_locked(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr("samstack._xdist.get_state_dir", lambda: tmp_path)
     try:
         assert acquire_infra_lock() is True
@@ -24,7 +26,9 @@ def test_acquire_fails_when_locked(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         release_infra_lock()
 
 
-def test_release_allows_reacquire(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_release_allows_reacquire(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr("samstack._xdist.get_state_dir", lambda: tmp_path)
     assert acquire_infra_lock() is True
     release_infra_lock()
@@ -34,7 +38,9 @@ def test_release_allows_reacquire(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         release_infra_lock()
 
 
-def test_lock_file_at_expected_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_lock_file_at_expected_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr("samstack._xdist.get_state_dir", lambda: tmp_path)
     try:
         acquire_infra_lock()
@@ -44,7 +50,9 @@ def test_lock_file_at_expected_path(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         release_infra_lock()
 
 
-def test_acquire_from_different_instance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_acquire_from_different_instance(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Two separate FileLock instances on the same path — only first succeeds."""
     from filelock import FileLock, Timeout
 

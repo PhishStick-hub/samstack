@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from samstack._xdist import get_worker_id, is_controller, is_xdist_worker
