@@ -74,8 +74,8 @@ samstack is a pytest plugin that runs AWS SAM CLI + LocalStack entirely inside D
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Coordination core: `_xdist.py` module (worker detection, state file I/O, FileLock) + unit tests
-- [ ] 08-02-PLAN.md — Fixture integration: xdist-aware `docker_network` with skip cascade + backward compat verification
+- [x] 08-01-PLAN.md — Coordination core: `_xdist.py` module (worker detection, state file I/O, FileLock) + unit tests
+- [x] 08-02-PLAN.md — Fixture integration: xdist-aware `docker_network` with skip cascade + backward compat verification
 
 #### Phase 9: Docker Infra Xdist-Awareness
 **Goal**: Shared LocalStack container, Docker network, and sam build output serve all xdist workers while preserving per-worker AWS resource isolation
