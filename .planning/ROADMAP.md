@@ -71,7 +71,11 @@ samstack is a pytest plugin that runs AWS SAM CLI + LocalStack entirely inside D
   3. When gw0 fails during infrastructure startup, gw1+ workers receive a clear `pytest.skip()` message within 120 seconds instead of hanging indefinitely
   4. Concurrent pytest sessions on the same host use separate state files and do not interfere with each other
   5. Unit tests verify FileLock acquisition, state file read/write, and worker role detection without Docker dependencies
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Coordination core: `_xdist.py` module (worker detection, state file I/O, FileLock) + unit tests
+- [ ] 08-02-PLAN.md — Fixture integration: xdist-aware `docker_network` with skip cascade + backward compat verification
 
 #### Phase 9: Docker Infra Xdist-Awareness
 **Goal**: Shared LocalStack container, Docker network, and sam build output serve all xdist workers while preserving per-worker AWS resource isolation
@@ -122,7 +126,7 @@ Execution order: 8 → 9 → 10 → 11 → 12
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 8. Core Xdist Coordination | 0/TBD | Not started | - |
+| 8. Core Xdist Coordination | 0/2 | Planned | - |
 | 9. Docker Infra Xdist-Awareness | 0/TBD | Not started | - |
 | 10. SAM API + Lambda Xdist-Awareness | 0/TBD | Not started | - |
 | 11. Mock Coordination | 0/TBD | Not started | - |
