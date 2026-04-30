@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import urllib.error
 import urllib.request
@@ -44,7 +45,8 @@ def _pre_warm_api_routes(
     for func_name, path in routes.items():
         url = f"{endpoint}{path}"
         try:
-            urllib.request.urlopen(url, timeout=10.0)  # noqa: S310
+            with contextlib.closing(urllib.request.urlopen(url, timeout=10.0)):  # noqa: S310
+                pass
         except urllib.error.HTTPError:
             pass
         except (urllib.error.URLError, OSError) as exc:

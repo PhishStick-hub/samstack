@@ -103,8 +103,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — `sam_api` fixture xdist-awareness (gw0 create + pre-warm, gw1+ wait, SERV-01 + SERV-04)
-- [ ] 10-02-PLAN.md — `sam_lambda_endpoint` fixture xdist-awareness (gw0 create + pre-warm, gw1+ wait, lambda_client unchanged, SERV-02 + SERV-03 + SERV-04)
+- [x] 10-01-PLAN.md — `sam_api` fixture xdist-awareness (gw0 create + pre-warm, gw1+ wait, SERV-01 + SERV-04)
+- [x] 10-02-PLAN.md — `sam_lambda_endpoint` fixture xdist-awareness (gw0 create + pre-warm, gw1+ wait, lambda_client unchanged, SERV-02 + SERV-03 + SERV-04)
 
 #### Phase 11: Mock Coordination
 **Goal**: Lambda mock spy buckets and env-var wiring work transparently across all xdist workers
@@ -136,6 +136,6 @@ Execution order: 8 → 9 → 10 → 11 → 12
 |-------|----------------|--------|-----------|
 | 8. Core Xdist Coordination | 2/2 | Complete | 2026-04-30 |
 | 9. Docker Infra Xdist-Awareness | 2/2 | Complete | 2026-05-01 |
-| 10. SAM API + Lambda Xdist-Awareness | 0/TBD | Ready to plan | - |
+| 10. SAM API + Lambda Xdist-Awareness | 2/2 | Complete   | 2026-04-30 |
 | 11. Mock Coordination | 0/TBD | Not started | - |
 | 12. Integration Testing, CI, Docs | 0/TBD | Not started | - |
