@@ -8,6 +8,12 @@ import pytest
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamBuildError
 from samstack._process import run_one_shot_container
+from samstack._xdist import (
+    get_worker_id,
+    is_controller,
+    wait_for_state_key,
+    write_state_file,
+)
 from samstack.fixtures._sam_container import DOCKER_SOCKET, _is_ci
 from samstack.settings import SamStackSettings
 
@@ -89,12 +95,20 @@ def sam_build(
     samstack_settings: SamStackSettings,
     sam_env_vars: dict[str, dict[str, str]],
 ) -> None:
-    """
-    Run `sam build` in a one-shot Docker container. Runs once per test session.
+    """Run `sam build` in a one-shot Docker container. Runs once per test session.
 
-    The build output lands in {project_root}/.aws-sam/ and is reused by
-    sam_api and sam_lambda_endpoint fixtures.
+    Under xdist: gw0 runs the build and writes a ``build_complete`` flag to
+    shared state; gw1+ workers poll for the flag and proceed without
+    re-running the build (timeout 300s).
     """
+    worker_id = get_worker_id()
+
+    # === gw1+ path: wait for gw0's build, skip build ===
+    if not is_controller(worker_id):
+        wait_for_state_key("build_complete", timeout=300)
+        return
+
+    # === gw0 / master path: run sam build ===
     log_dir = samstack_settings.project_root / samstack_settings.log_dir
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -120,15 +134,34 @@ def sam_build(
         DOCKER_SOCKET: {"bind": DOCKER_SOCKET, "mode": "rw"},
     }
 
-    logs, exit_code = run_one_shot_container(
-        image=samstack_settings.sam_image,
-        command=build_cmd,
-        volumes=volumes,
-        working_dir=host_path,
-        environment={"DOCKER_DEFAULT_PLATFORM": samstack_settings.docker_platform},
-    )
-    if exit_code != 0:
-        raise SamBuildError(logs=logs)
+    try:
+        logs, exit_code = run_one_shot_container(
+            image=samstack_settings.sam_image,
+            command=build_cmd,
+            volumes=volumes,
+            working_dir=host_path,
+            environment={"DOCKER_DEFAULT_PLATFORM": samstack_settings.docker_platform},
+        )
+        if exit_code != 0:
+            if worker_id == "gw0":
+                write_state_file(
+                    "error",
+                    f"sam build failed with exit code {exit_code}",
+                )
+            raise SamBuildError(logs=logs)
+    except SamBuildError:
+        raise
+    except Exception as exc:
+        if worker_id == "gw0":
+            write_state_file(
+                "error",
+                f"sam build failed: {exc}",
+            )
+        raise
+
+    # Signal gw1+ that the build is complete
+    if worker_id == "gw0":
+        write_state_file("build_complete", True)
 
     if samstack_settings.add_gitignore:
         _add_gitignore_entry(samstack_settings.project_root, samstack_settings.log_dir)
