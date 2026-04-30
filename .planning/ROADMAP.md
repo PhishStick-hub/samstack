@@ -100,7 +100,11 @@ Plans:
   1. A downstream project running `pytest -n 3` with HTTP API tests sees all three workers sending requests to a single SAM start-api container
   2. A downstream project running `pytest -n 3` with Lambda invocation tests sees `lambda_client.invoke()` working from all three workers against a single SAM start-lambda container
   3. Pre-warmed Lambda containers (configured via `warm_functions`) are created once by gw0 and serve warm invocation requests from all workers
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — `sam_api` fixture xdist-awareness (gw0 create + pre-warm, gw1+ wait, SERV-01 + SERV-04)
+- [ ] 10-02-PLAN.md — `sam_lambda_endpoint` fixture xdist-awareness (gw0 create + pre-warm, gw1+ wait, lambda_client unchanged, SERV-02 + SERV-03 + SERV-04)
 
 #### Phase 11: Mock Coordination
 **Goal**: Lambda mock spy buckets and env-var wiring work transparently across all xdist workers
