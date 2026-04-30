@@ -147,7 +147,6 @@ class TestLocalStackContainerMaster:
     ) -> None:
         """master path: creates LocalStack container, starts it, does NOT write state."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "master")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
 
@@ -164,7 +163,6 @@ class TestLocalStackContainerMaster:
     def test_stops_on_teardown_master(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """master path: container.stop() is called on teardown."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "master")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
 
@@ -188,7 +186,6 @@ class TestLocalStackContainerGw0:
     ) -> None:
         """gw0 path: creates container, writes localstack_endpoint to state."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
 
@@ -205,7 +202,6 @@ class TestLocalStackContainerGw0:
     def test_writes_error_on_failure_gw0(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw0 path: writes error key to state on Docker failure, re-raises."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
 
         mock_inner = MagicMock()
         mock_container = MagicMock()
@@ -233,7 +229,6 @@ class TestLocalStackContainerGw0:
     ) -> None:
         """gw0 path: container.stop() and disconnect called on teardown."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
         disconnect_spy = MagicMock()
@@ -261,7 +256,6 @@ class TestLocalStackContainerGw1:
     ) -> None:
         """gw1+ path: yields _LocalStackContainerProxy, no Docker API calls."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: False)
         monkeypatch.setattr(
             loc,
             "wait_for_state_key",
@@ -283,7 +277,6 @@ class TestLocalStackContainerGw1:
     def test_no_teardown_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: no container.stop() or disconnect on teardown."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
-        monkeypatch.setattr(loc, "is_controller", lambda wid=None: False)
         monkeypatch.setattr(
             loc,
             "wait_for_state_key",
