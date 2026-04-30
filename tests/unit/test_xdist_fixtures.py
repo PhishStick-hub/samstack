@@ -54,33 +54,15 @@ class TestDockerNetworkNameGw0:
 
 
 class TestDockerNetworkNameGw1:
-    def test_reads_from_state_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw1+ reads docker_network from shared state, not from uuid4()."""
+    def test_returns_empty_string_on_gw1(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """gw1+ returns '' — coordination moves into docker_network via wait_for_state_key."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
-        monkeypatch.setattr(
-            loc,
-            "wait_for_state_key",
-            lambda key, timeout=120: "samstack-deadbeef",
-        )
 
         mock_request = MagicMock()
         result = _docker_network_name(mock_request)
-        assert result == "samstack-deadbeef"
-
-    def test_fails_on_error_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw1+ raises pytest.fail.Exception when gw0 wrote an error to state."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
-        monkeypatch.setattr(
-            loc,
-            "wait_for_state_key",
-            lambda key, timeout=120: pytest.fail(
-                "gw0 infrastructure startup failed: boom"
-            ),
-        )
-
-        mock_request = MagicMock()
-        with pytest.raises(pytest.fail.Exception, match="boom"):
-            _docker_network_name(mock_request)
+        assert result == ""
 
 
 # ---------------------------------------------------------------------------
@@ -251,14 +233,20 @@ class TestDockerNetworkGw0:
 
 class TestDockerNetworkGw1:
     def test_yields_without_docker_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw1+ yields network name without any Docker API calls."""
+        """gw1+ polls shared state for the network name, yields it without Docker calls."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(
+            loc,
+            "wait_for_state_key",
+            lambda key, timeout=120: "samstack-from-state",
+        )
 
         # Mock Docker SDK to detect if it's called
         mock_client = MagicMock()
         monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: mock_client)
 
-        gen = _docker_network_gen("samstack-from-state")
+        # docker_network_name is "" for gw1+ — docker_network polls state itself
+        gen = _docker_network_gen("")
         result = next(gen)
         assert result == "samstack-from-state"
 
@@ -268,6 +256,11 @@ class TestDockerNetworkGw1:
     def test_no_teardown_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ teardown is a no-op — no _teardown_network, no lock release."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(
+            loc,
+            "wait_for_state_key",
+            lambda key, timeout=120: "samstack-from-state",
+        )
 
         mock_client = MagicMock()
         monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: mock_client)
@@ -277,7 +270,7 @@ class TestDockerNetworkGw1:
         lock_release_spy = MagicMock()
         monkeypatch.setattr(loc, "release_infra_lock", lock_release_spy)
 
-        gen = _docker_network_gen("samstack-from-state")
+        gen = _docker_network_gen("")
         result = next(gen)
         assert result == "samstack-from-state"
 
@@ -286,3 +279,18 @@ class TestDockerNetworkGw1:
 
         teardown_spy.assert_not_called()
         lock_release_spy.assert_not_called()
+
+    def test_fails_on_error_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """gw1+ raises pytest.fail.Exception when gw0 wrote an error to state."""
+        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(
+            loc,
+            "wait_for_state_key",
+            lambda key, timeout=120: pytest.fail(
+                "gw0 infrastructure startup failed: boom"
+            ),
+        )
+
+        gen = _docker_network_gen("")
+        with pytest.raises(pytest.fail.Exception, match="boom"):
+            next(gen)

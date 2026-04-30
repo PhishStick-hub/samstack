@@ -88,25 +88,31 @@ def docker_network_name(request: pytest.FixtureRequest) -> str:
     """Return the name for the shared Docker bridge network.
 
     Override this fixture to use a fixed or externally-managed network name.
-    Under xdist: gw0/master generates a UUID name; gw1+ reads from shared state.
+    Under xdist: gw0/master generates a UUID name; gw1+ returns an empty
+    string — the real name is resolved inside ``docker_network`` by polling
+    shared state, making the coordination dependency explicit there.
     """
     worker_id = get_worker_id()
     if is_controller(worker_id):
         return f"samstack-{uuid4().hex[:8]}"
-    return wait_for_state_key("docker_network", timeout=120)
+    # gw1+ workers do not generate a name; docker_network polls shared state.
+    return ""
 
 
 @pytest.fixture(scope="session")
 def docker_network(docker_network_name: str) -> Iterator[str]:
     """Create a Docker bridge network shared by LocalStack and SAM containers.
 
-    Under xdist: gw0/master creates the network; gw1+ reads from shared state.
+    Under xdist: gw0/master creates the network; gw1+ waits for gw0 to write
+    the network name to shared state (coordination happens here, not in
+    ``docker_network_name``, so the dependency is explicit).
     """
     worker_id = get_worker_id()
 
-    # === gw1+ path: read from state, no Docker creation ===
+    # === gw1+ path: wait for gw0 to create the network, then proxy ===
     if not is_controller(worker_id):
-        yield docker_network_name
+        resolved_name = wait_for_state_key("docker_network", timeout=120)
+        yield resolved_name
         return
 
     # === gw0 / master path: create Docker infrastructure ===
