@@ -8,6 +8,12 @@ from collections.abc import Iterator
 import pytest
 
 from samstack._errors import SamStartupError
+from samstack._xdist import (
+    get_worker_id,
+    is_controller,
+    wait_for_state_key,
+    write_state_file,
+)
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
 
@@ -93,24 +99,45 @@ def sam_api(
     warm_functions: list[str],
     warm_api_routes: dict[str, str],
 ) -> Iterator[str]:
-    """
-    Start `sam local start-api` in Docker. Yields base URL http://127.0.0.1:{api_port}.
+    """Start `sam local start-api` in Docker. Yields base URL http://127.0.0.1:{api_port}.
+
+    Under xdist: gw0 starts the container and writes the endpoint to shared state;
+    gw1+ workers poll for the endpoint and yield it without any Docker calls.
     Logs written to {log_dir}/start-api.log.
     """
-    with _run_sam_service(
-        settings=samstack_settings,
-        docker_network=docker_network,
-        subcommand="start-api",
-        port=samstack_settings.api_port,
-        warm_containers="LAZY",
-        settings_extra_args=samstack_settings.start_api_args,
-        fixture_extra_args=sam_api_extra_args,
-        log_filename="start-api.log",
-        wait_mode="http",
-        network_alias="sam-api",
-    ) as endpoint:
-        _pre_warm_api_routes(
-            endpoint,
-            _filter_warm_routes(warm_api_routes, warm_functions),
-        )
+    worker_id = get_worker_id()
+
+    # === gw1+ path: wait for gw0, yield URL, no Docker ===
+    if not is_controller(worker_id):
+        endpoint = wait_for_state_key("sam_api_endpoint", timeout=120)
         yield endpoint
+        return
+
+    # === gw0 / master path: start container + pre-warm ===
+    try:
+        with _run_sam_service(
+            settings=samstack_settings,
+            docker_network=docker_network,
+            subcommand="start-api",
+            port=samstack_settings.api_port,
+            warm_containers="LAZY",
+            settings_extra_args=samstack_settings.start_api_args,
+            fixture_extra_args=sam_api_extra_args,
+            log_filename="start-api.log",
+            wait_mode="http",
+            network_alias="sam-api",
+        ) as endpoint:
+            _pre_warm_api_routes(
+                endpoint,
+                _filter_warm_routes(warm_api_routes, warm_functions),
+            )
+            if worker_id == "gw0":
+                write_state_file("sam_api_endpoint", endpoint)
+            yield endpoint
+    except Exception as exc:
+        if worker_id == "gw0":
+            write_state_file(
+                "error",
+                f"sam_api container failed to start: {exc}",
+            )
+        raise

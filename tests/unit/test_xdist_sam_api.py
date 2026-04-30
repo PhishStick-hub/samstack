@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -60,7 +59,7 @@ class TestSamApiMaster:
         monkeypatch.setattr(sa, "get_worker_id", lambda: "master")
         monkeypatch.setattr(
             sa, "_run_sam_service",
-            lambda *a: _mock_run_sam_service_success("http://127.0.0.1:3000"),
+            lambda *a, **kw: _mock_run_sam_service_success("http://127.0.0.1:3000"),
         )
 
         pre_warm_spy = MagicMock()
@@ -86,7 +85,7 @@ class TestSamApiMaster:
         monkeypatch.setattr(sa, "get_worker_id", lambda: "master")
         monkeypatch.setattr(
             sa, "_run_sam_service",
-            lambda *a: _mock_run_sam_service_error(),
+            lambda *a, **kw: _mock_run_sam_service_error(),
         )
 
         write_spy = MagicMock()
@@ -114,7 +113,7 @@ class TestSamApiGw0:
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(
             sa, "_run_sam_service",
-            lambda *a: _mock_run_sam_service_success("http://127.0.0.1:3000"),
+            lambda *a, **kw: _mock_run_sam_service_success("http://127.0.0.1:3000"),
         )
 
         pre_warm_spy = MagicMock()
@@ -142,7 +141,7 @@ class TestSamApiGw0:
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(
             sa, "_run_sam_service",
-            lambda *a: _mock_run_sam_service_success("http://127.0.0.1:3000"),
+            lambda *a, **kw: _mock_run_sam_service_success("http://127.0.0.1:3000"),
         )
 
         monkeypatch.setattr(
@@ -176,7 +175,7 @@ class TestSamApiGw0:
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(
             sa, "_run_sam_service",
-            lambda *a: _mock_run_sam_service_error(),
+            lambda *a, **kw: _mock_run_sam_service_error(),
         )
 
         write_spy = MagicMock()
