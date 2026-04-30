@@ -89,8 +89,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — localstack_container + localstack_endpoint xdist-awareness (gw1+ proxy, shared endpoint)
-- [ ] 09-02-PLAN.md — sam_build xdist-awareness (build_complete flag, gw1+ wait) + resource fixture verification (INFRA-04)
+- [x] 09-01-PLAN.md — localstack_container + localstack_endpoint xdist-awareness (gw1+ proxy, shared endpoint)
+- [x] 09-02-PLAN.md — sam_build xdist-awareness (build_complete flag, gw1+ wait) + resource fixture verification (INFRA-04)
 
 #### Phase 10: SAM API + Lambda Xdist-Awareness
 **Goal**: Shared SAM API and Lambda containers serve all workers for both HTTP and boto3 invocation patterns, including warm container reuse
