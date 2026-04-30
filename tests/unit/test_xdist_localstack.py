@@ -12,9 +12,9 @@ import samstack.fixtures.localstack as loc
 _localstack_endpoint_raw: Callable[[object], str] = getattr(
     loc.localstack_endpoint, "__wrapped__"
 )
-_localstack_container_gen: Callable[
-    [object, str], Generator[object, None, None]
-] = getattr(loc.localstack_container, "__wrapped__")
+_localstack_container_gen: Callable[[object, str], Generator[object, None, None]] = (
+    getattr(loc.localstack_container, "__wrapped__")
+)
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,9 @@ def _setup_docker_mocks(monkeypatch: pytest.MonkeyPatch) -> tuple[MagicMock, Mag
     mock_container = MagicMock()
     mock_container.get_url.return_value = "http://127.0.0.1:4566"
     mock_container.get_wrapped_container.return_value = mock_inner
-    monkeypatch.setattr(loc, "LocalStackContainer", MagicMock(return_value=mock_container))
+    monkeypatch.setattr(
+        loc, "LocalStackContainer", MagicMock(return_value=mock_container)
+    )
 
     mock_client = MagicMock()
     monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: mock_client)
@@ -140,7 +142,9 @@ def _setup_docker_mocks(monkeypatch: pytest.MonkeyPatch) -> tuple[MagicMock, Mag
 
 
 class TestLocalStackContainerMaster:
-    def test_creates_and_starts_on_master(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_creates_and_starts_on_master(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """master path: creates LocalStack container, starts it, does NOT write state."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "master")
         monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
@@ -198,9 +202,7 @@ class TestLocalStackContainerGw0:
         mock_container.start.assert_called_once()
         write_spy.assert_called_with("localstack_endpoint", "http://127.0.0.1:4566")
 
-    def test_writes_error_on_failure_gw0(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_writes_error_on_failure_gw0(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw0 path: writes error key to state on Docker failure, re-raises."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(loc, "is_controller", lambda wid=None: True)
@@ -209,7 +211,9 @@ class TestLocalStackContainerGw0:
         mock_container = MagicMock()
         mock_container.get_wrapped_container.return_value = mock_inner
         mock_container.start.side_effect = Exception("docker fail")
-        monkeypatch.setattr(loc, "LocalStackContainer", MagicMock(return_value=mock_container))
+        monkeypatch.setattr(
+            loc, "LocalStackContainer", MagicMock(return_value=mock_container)
+        )
         monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: MagicMock())
         monkeypatch.setattr(loc, "_connect_container_with_alias", MagicMock())
         monkeypatch.setattr(loc, "stream_logs_to_file", MagicMock())
@@ -290,7 +294,9 @@ class TestLocalStackContainerGw1:
         monkeypatch.setattr(loc, "_disconnect_container_from_network", disconnect_spy)
 
         mock_container = MagicMock()
-        monkeypatch.setattr(loc, "LocalStackContainer", MagicMock(return_value=mock_container))
+        monkeypatch.setattr(
+            loc, "LocalStackContainer", MagicMock(return_value=mock_container)
+        )
         monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: MagicMock())
 
         mock_settings = _make_mock_settings()
