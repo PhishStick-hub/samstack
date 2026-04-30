@@ -75,7 +75,7 @@ def test_wait_for_state_key_timeout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr("samstack._xdist.get_state_dir", lambda: tmp_path)
-    with pytest.raises(pytest.skip.Exception):
+    with pytest.raises(pytest.fail.Exception):
         wait_for_state_key("nonexistent", timeout=0.1)
 
 
@@ -84,5 +84,5 @@ def test_wait_for_state_key_error(
 ) -> None:
     monkeypatch.setattr("samstack._xdist.get_state_dir", lambda: tmp_path)
     write_state_file("error", "boom")
-    with pytest.raises(pytest.skip.Exception, match="boom"):
+    with pytest.raises(pytest.fail.Exception, match="boom"):
         wait_for_state_key("any", timeout=1.0)

@@ -150,18 +150,18 @@ class TestSamBuildGw1:
         wait_spy.assert_called_once_with("build_complete", timeout=300)
         run_spy.assert_not_called()
 
-    def test_skips_on_error_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw1+ raises pytest.skip.Exception when error key detected in state."""
+    def test_fails_on_error_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """gw1+ raises pytest.fail.Exception when error key detected in state."""
         monkeypatch.setattr(sb, "get_worker_id", lambda: "gw1")
 
         monkeypatch.setattr(
             sb,
             "wait_for_state_key",
             MagicMock(
-                side_effect=pytest.skip.Exception("gw0 infrastructure startup failed")
+                side_effect=pytest.fail.Exception("gw0 infrastructure startup failed")
             ),
         )
 
         mock_settings = _make_mock_settings()
-        with pytest.raises(pytest.skip.Exception):
+        with pytest.raises(pytest.fail.Exception):
             _sam_build_raw(mock_settings, _mock_env_vars)

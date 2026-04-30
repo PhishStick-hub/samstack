@@ -67,19 +67,19 @@ class TestDockerNetworkNameGw1:
         result = _docker_network_name(mock_request)
         assert result == "samstack-deadbeef"
 
-    def test_skips_on_error_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw1+ calls pytest.skip() when gw0 wrote an error to state."""
+    def test_fails_on_error_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """gw1+ raises pytest.fail.Exception when gw0 wrote an error to state."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
         monkeypatch.setattr(
             loc,
             "wait_for_state_key",
-            lambda key, timeout=120: pytest.skip(
+            lambda key, timeout=120: pytest.fail(
                 "gw0 infrastructure startup failed: boom"
             ),
         )
 
         mock_request = MagicMock()
-        with pytest.raises(pytest.skip.Exception, match="boom"):
+        with pytest.raises(pytest.fail.Exception, match="boom"):
             _docker_network_name(mock_request)
 
 
