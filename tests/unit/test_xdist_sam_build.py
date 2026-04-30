@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -102,9 +102,7 @@ class TestSamBuildGw0:
         run_spy.assert_called_once()
         write_spy.assert_called_once_with("build_complete", True)
 
-    def test_writes_error_on_failure_gw0(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_writes_error_on_failure_gw0(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw0 writes error key on build failure and re-raises SamBuildError."""
         monkeypatch.setattr(sb, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(sb, "_is_ci", lambda: False)
