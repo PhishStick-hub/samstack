@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamStartupError
+from samstack._xdist import get_worker_id, is_controller, wait_for_state_key, write_state_file
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
 
@@ -94,25 +95,45 @@ def sam_lambda_endpoint(
     sam_lambda_extra_args: list[str],
     warm_functions: list[str],
 ) -> Iterator[str]:
-    """
-    Start `sam local start-lambda` in Docker. Yields the endpoint URL
-    http://127.0.0.1:{lambda_port} for use with boto3 Lambda client.
+    """Start `sam local start-lambda` in Docker. Yields endpoint URL http://127.0.0.1:{lambda_port}.
+
+    Under xdist: gw0 starts the container and writes the endpoint to shared state;
+    gw1+ workers poll for the endpoint and yield it without any Docker calls.
     Logs written to {log_dir}/start-lambda.log.
     """
-    with _run_sam_service(
-        settings=samstack_settings,
-        docker_network=docker_network,
-        subcommand="start-lambda",
-        port=samstack_settings.lambda_port,
-        warm_containers=_warm_containers_mode(warm_functions),
-        settings_extra_args=samstack_settings.start_lambda_args,
-        fixture_extra_args=sam_lambda_extra_args,
-        log_filename="start-lambda.log",
-        wait_mode="port",
-        network_alias="sam-lambda",
-    ) as endpoint:
-        _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
+    worker_id = get_worker_id()
+
+    # === gw1+ path: wait for gw0, yield URL, no Docker ===
+    if not is_controller(worker_id):
+        endpoint = wait_for_state_key("sam_lambda_endpoint", timeout=120)
         yield endpoint
+        return
+
+    # === gw0 / master path: start container + pre-warm ===
+    try:
+        with _run_sam_service(
+            settings=samstack_settings,
+            docker_network=docker_network,
+            subcommand="start-lambda",
+            port=samstack_settings.lambda_port,
+            warm_containers=_warm_containers_mode(warm_functions),
+            settings_extra_args=samstack_settings.start_lambda_args,
+            fixture_extra_args=sam_lambda_extra_args,
+            log_filename="start-lambda.log",
+            wait_mode="port",
+            network_alias="sam-lambda",
+        ) as endpoint:
+            _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
+            if worker_id == "gw0":
+                write_state_file("sam_lambda_endpoint", endpoint)
+            yield endpoint
+    except Exception as exc:
+        if worker_id == "gw0":
+            write_state_file(
+                "error",
+                f"sam_lambda_endpoint container failed to start: {exc}",
+            )
+        raise
 
 
 @pytest.fixture(scope="session")
