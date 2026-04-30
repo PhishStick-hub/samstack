@@ -86,7 +86,11 @@ Plans:
   2. Tests in different workers create and use uniquely-named S3 buckets, DynamoDB tables, SQS queues, and SNS topics without cross-worker data collisions
   3. Only gw0's session teardown stops the Docker containers and removes the network; gw1+ workers exit without Docker API errors
   4. `sam build` executes exactly once (on gw0); gw1+ workers wait for the build completion flag and proceed when the build output directory is ready
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — localstack_container + localstack_endpoint xdist-awareness (gw1+ proxy, shared endpoint)
+- [ ] 09-02-PLAN.md — sam_build xdist-awareness (build_complete flag, gw1+ wait) + resource fixture verification (INFRA-04)
 
 #### Phase 10: SAM API + Lambda Xdist-Awareness
 **Goal**: Shared SAM API and Lambda containers serve all workers for both HTTP and boto3 invocation patterns, including warm container reuse
@@ -127,7 +131,7 @@ Execution order: 8 → 9 → 10 → 11 → 12
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 8. Core Xdist Coordination | 0/2 | Planned | - |
-| 9. Docker Infra Xdist-Awareness | 0/TBD | Not started | - |
+| 9. Docker Infra Xdist-Awareness | 0/2 | Planned | - |
 | 10. SAM API + Lambda Xdist-Awareness | 0/TBD | Not started | - |
 | 11. Mock Coordination | 0/TBD | Not started | - |
 | 12. Integration Testing, CI, Docs | 0/TBD | Not started | - |
