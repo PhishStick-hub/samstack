@@ -242,7 +242,13 @@ def localstack_container(
                 f"samstack: failed to disconnect LocalStack from network '{docker_network}': {exc}",
                 stacklevel=2,
             )
-        container.stop()
+        try:
+            container.stop()
+        except Exception as exc:
+            warnings.warn(
+                f"samstack: failed to stop LocalStack container: {exc}",
+                stacklevel=2,
+            )
 
 
 @pytest.fixture(scope="session")
