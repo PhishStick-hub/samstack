@@ -122,6 +122,7 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
                 "error",
                 f"Docker network creation failed: {docker_network_name}",
             )
+            release_infra_lock()
             raise
     else:
         # master (no xdist) — existing behavior, no state file needed
