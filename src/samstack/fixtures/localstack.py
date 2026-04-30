@@ -140,21 +140,72 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
 # — LocalStack container -------------------------------------------------------
 
 
+class _LocalStackContainerProxy:
+    """Lightweight proxy that mimics LocalStackContainer.get_url() on gw1+ workers.
+
+    gw1+ workers do not start their own LocalStack container. Instead, they
+    wait for gw0 to write the shared endpoint to the state file. This proxy
+    satisfies the `localstack_container` fixture dependency on gw1+ so that
+    downstream fixtures (localstack_endpoint, boto3 clients) work unchanged.
+    """
+
+    def __init__(self, endpoint: str) -> None:
+        self._endpoint = endpoint
+
+    def get_url(self) -> str:
+        return self._endpoint
+
+    def get_wrapped_container(self) -> None:
+        """gw1+ has no Docker container — always returns None."""
+        return None
+
+    def stop(self) -> None:
+        """gw1+ does not own the container — no-op."""
+
+
 @pytest.fixture(scope="session")
 def localstack_container(
     samstack_settings: SamStackSettings,
     docker_network: str,
-) -> Iterator[LocalStackContainer]:
-    """Start LocalStack and connect it to the shared Docker network."""
+) -> Iterator[LocalStackContainer | _LocalStackContainerProxy]:
+    """Start LocalStack and connect it to the shared Docker network.
+
+    Under xdist: gw0 starts LocalStack and writes its endpoint to shared
+    state; gw1+ waits for the endpoint and yields a lightweight proxy
+    without any Docker API calls.
+    """
+    worker_id = get_worker_id()
+
+    # === gw1+ path: wait for gw0, yield proxy, no Docker ===
+    if not is_controller(worker_id):
+        endpoint = wait_for_state_key("localstack_endpoint", timeout=120)
+        yield _LocalStackContainerProxy(endpoint)
+        return
+
+    # === gw0 / master path: create and start LocalStack ===
     container = LocalStackContainer(image=samstack_settings.localstack_image)
     container.with_volume_mapping(DOCKER_SOCKET, DOCKER_SOCKET, "rw")
-    container.start()
+
+    try:
+        container.start()
+    except Exception:
+        if worker_id == "gw0":
+            write_state_file(
+                "error",
+                "LocalStack container failed to start",
+            )
+        raise
 
     log_dir = samstack_settings.project_root / samstack_settings.log_dir
     log_dir.mkdir(parents=True, exist_ok=True)
     inner = container.get_wrapped_container()
     if inner is None:
         container.stop()
+        if worker_id == "gw0":
+            write_state_file(
+                "error",
+                "LocalStack container exited before start",
+            )
         raise LocalStackStartupError(log_tail="container exited before start")
     stream_logs_to_file(inner, log_dir / "localstack.log")
 
@@ -163,7 +214,16 @@ def localstack_container(
         _connect_container_with_alias(client, docker_network, container, "localstack")
     except Exception as exc:
         container.stop()
+        if worker_id == "gw0":
+            write_state_file(
+                "error",
+                f"LocalStack network connection failed: {exc}",
+            )
         raise DockerNetworkError(name=docker_network, reason=str(exc)) from exc
+
+    # Write endpoint to shared state so gw1+ can read it
+    if worker_id == "gw0":
+        write_state_file("localstack_endpoint", container.get_url())
 
     try:
         yield container
@@ -179,6 +239,8 @@ def localstack_container(
 
 
 @pytest.fixture(scope="session")
-def localstack_endpoint(localstack_container: LocalStackContainer) -> str:
+def localstack_endpoint(
+    localstack_container: LocalStackContainer | _LocalStackContainerProxy,
+) -> str:
     """Return the host-accessible LocalStack URL for use in boto3 clients."""
     return localstack_container.get_url()

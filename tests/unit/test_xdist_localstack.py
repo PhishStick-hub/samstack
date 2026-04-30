@@ -58,10 +58,14 @@ class TestLocalStackEndpointGw0:
 
         assert result == "http://127.0.0.1:4566"
 
-    def test_writes_endpoint_to_state_on_gw0(
+    def test_does_not_write_state_directly(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """gw0 path: localstack_endpoint writes localstack_endpoint key to state."""
+        """gw0 path: localstack_endpoint itself does NOT write state (container does).
+
+        The write_state_file("localstack_endpoint") call is made in localstack_container,
+        not in localstack_endpoint. localstack_endpoint simply calls get_url().
+        """
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
 
         write_spy = MagicMock()
@@ -70,9 +74,10 @@ class TestLocalStackEndpointGw0:
         mock_container = MagicMock()
         mock_container.get_url.return_value = "http://127.0.0.1:4566"
 
-        _localstack_endpoint_raw(mock_container)
+        result = _localstack_endpoint_raw(mock_container)
 
-        write_spy.assert_called_once_with("localstack_endpoint", "http://127.0.0.1:4566")
+        assert result == "http://127.0.0.1:4566"
+        write_spy.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
