@@ -45,15 +45,23 @@ Building v2.3.0 — "pytest-xdist Support" (started 2026-04-29). Full details in
 - ✓ Integration tests verify pre-warmed containers stay warm across multiple invocations — v2.2.0 Phase 7
 - ✓ Crash test verifies warm sub-containers cleaned up on SIGKILL via Ryuk cascade — v2.2.0 Phase 7
 - ✓ Public documentation covers configuration, fixtures, and known limitations — v2.2.0 Phase 7
+- ✓ Import-safe xdist worker detection and FileLock-guarded singleton creation — v2.3.0 Phase 8
+- ✓ Shared JSON state file for cross-worker endpoint + build coordination — v2.3.0 Phase 8
+- ✓ Xdist-aware docker_network with gw0-create/gw1+-wait pattern — v2.3.0 Phase 8
+- ✓ Shared LocalStack container serving all xdist workers via _LocalStackContainerProxy — v2.3.0 Phase 9
+- ✓ sam_build runs once on gw0 with build_complete state flag for gw1+ — v2.3.0 Phase 9
+- ✓ Resource fixture per-worker isolation preserved via UUID4 naming — v2.3.0 Phase 9
 
 ### Active
 
-- [ ] Shared Docker infra across xdist workers (one LocalStack + SAM for all)
-- [ ] Auto-detect xdist worker IDs (worker 0 = infra owner)
-- [ ] SAM build + warm containers on worker 0 only
-- [ ] Resource fixtures (S3, DynamoDB, SQS, SNS) compatible with xdist
+- [ ] SAM API container shared across xdist workers (gw0 creates, gw1+ reads URL)
+- [ ] SAM Lambda container shared across xdist workers
+- [ ] Warm container coordination across xdist workers
 - [ ] samstack.mock spy buckets compatible with xdist
-- [ ] Fail-fast with clear skip cascade on infra failure
+- [ ] End-to-end xdist integration test suite
+- [ ] Crash recovery test for xdist workers
+- [ ] xdist usage documentation and README updates
+- [ ] Performance benchmark (plain vs xdist suite times)
 
 ### Out of Scope
 
@@ -92,6 +100,9 @@ Key files: `src/samstack/settings.py` (warm_functions field), `src/samstack/fixt
 | Sequential pre-warm with single-attempt hard-fail | Avoids race conditions; surfaces issues immediately at session start | ✓ Good — both path tests pass |
 | Init-marker UUID pattern for warm container verification | Deterministic, immune to timing jitter; proves container reuse | ✓ Good — both start-lambda and start-api paths verified |
 | Warm container crash test as separate file | Distinct prerequisites (full SAM + pre-warm) from network-only crash test | ✓ Good — skips correctly on macOS |
+| `_LocalStackContainerProxy` with `get_url()` return the endpoint | Transparent to all downstream fixtures — zero code changes to resources.py, plugin.py, or any boto3 client fixture | ✓ Good — 13 unit tests pass |
+| 300s `build_complete` timeout on gw1+ wait | Cold-cache SAM builds with Docker pulls can take 2-3 minutes; 120s default insufficient | ✓ Good — 6 unit tests pass |
+| UUID4 per-call naming preserves per-worker isolation | Each xdist worker has independent UUID4 stream; no code changes to resources.py required | ✓ Good — INFRA-04 satisfied, 10 validation tests pass |
 
 ## Evolution
 
@@ -112,4 +123,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-29 after starting v2.3.0 milestone*
+*Last updated: 2026-05-01 after Phase 09 (docker-infra-xdist-awareness)*

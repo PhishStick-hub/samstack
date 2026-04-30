@@ -68,16 +68,16 @@ Explicitly excluded from samstack entirely:
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COORD-01 | Phase 8 | Pending |
-| COORD-02 | Phase 8 | Pending |
-| COORD-03 | Phase 8 | Pending |
-| COORD-04 | Phase 8 | Pending |
-| COORD-05 | Phase 8 | Pending |
-| INFRA-01 | Phase 9 | Pending |
-| INFRA-02 | Phase 9 | Pending |
-| INFRA-03 | Phase 9 | Pending |
-| INFRA-04 | Phase 9 | Pending |
-| INFRA-05 | Phase 9 | Pending |
+| COORD-01 | Phase 8 | Complete |
+| COORD-02 | Phase 8 | Complete |
+| COORD-03 | Phase 8 | Complete |
+| COORD-04 | Phase 8 | Complete |
+| COORD-05 | Phase 8 | Complete |
+| INFRA-01 | Phase 9 | Complete |
+| INFRA-02 | Phase 9 | Complete |
+| INFRA-03 | Phase 9 | Complete |
+| INFRA-04 | Phase 9 | Complete |
+| INFRA-05 | Phase 9 | Complete |
 | SERV-01 | Phase 10 | Pending |
 | SERV-02 | Phase 10 | Pending |
 | SERV-03 | Phase 10 | Pending |

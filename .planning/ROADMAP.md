@@ -130,8 +130,8 @@ Execution order: 8 → 9 → 10 → 11 → 12
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 8. Core Xdist Coordination | 0/2 | Planned | - |
-| 9. Docker Infra Xdist-Awareness | 0/2 | Planned | - |
-| 10. SAM API + Lambda Xdist-Awareness | 0/TBD | Not started | - |
+| 8. Core Xdist Coordination | 2/2 | Complete | 2026-04-30 |
+| 9. Docker Infra Xdist-Awareness | 2/2 | Complete | 2026-05-01 |
+| 10. SAM API + Lambda Xdist-Awareness | 0/TBD | Ready to plan | - |
 | 11. Mock Coordination | 0/TBD | Not started | - |
 | 12. Integration Testing, CI, Docs | 0/TBD | Not started | - |
