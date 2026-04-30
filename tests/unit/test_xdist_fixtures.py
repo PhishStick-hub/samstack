@@ -54,9 +54,7 @@ class TestDockerNetworkNameGw0:
 
 
 class TestDockerNetworkNameGw1:
-    def test_returns_empty_string_on_gw1(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_empty_string_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ returns '' — coordination moves into docker_network via wait_for_state_key."""
         monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
 
