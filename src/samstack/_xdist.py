@@ -74,11 +74,11 @@ def wait_for_state_key(
     while time.monotonic() < deadline:
         state = read_state_file()
         if "error" in state:
-            pytest.skip(f"gw0 infrastructure startup failed: {state['error']}")
+            pytest.fail(f"gw0 infrastructure startup failed: {state['error']}")
         if key in state:
             return state[key]
         time.sleep(poll_interval)
-    pytest.skip(f"Timed out after {timeout}s waiting for gw0 to create '{key}'")
+    pytest.fail(f"Timed out after {timeout}s waiting for gw0 to create '{key}'")
 
 
 def acquire_infra_lock() -> bool:
