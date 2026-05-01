@@ -36,11 +36,11 @@
 
 ### Testing & Documentation (TEST)
 
-- [ ] **TEST-01**: Dedicated xdist integration test suite — separate pytest session with `-n 2` using isolated fixtures (no conflict with root conftest.py).
-- [ ] **TEST-02**: Crash recovery test — force gw0 Docker startup failure, assert gw1+ exits with clean `pytest.skip()` not hang or cryptic error.
-- [ ] **TEST-03**: Resource fixture parallelism test — `-n 4` with S3/DynamoDB/SQS/SNS reads/writes from multiple workers simultaneously.
-- [ ] **TEST-04**: User documentation — xdist usage guide in README with configuration, `-n` flag usage, supported `--dist` modes, CI recommendations, and known limitations.
-- [ ] **TEST-05**: Performance benchmark — measure suite execution time with plain `pytest` (baseline, no xdist) vs `pytest -n 2/4/auto` (xdist). Report speedup factor. Track across development iterations to catch regressions.
+- [x] **TEST-01**: Dedicated xdist integration test suite — separate pytest session with `-n 2` using isolated fixtures (no conflict with root conftest.py).
+- [x] **TEST-02**: Crash recovery test — force gw0 Docker startup failure, assert gw1+ exits with clean `pytest.skip()` not hang or cryptic error.
+- [x] **TEST-03**: Resource fixture parallelism test — `-n 4` with S3/DynamoDB/SQS/SNS reads/writes from multiple workers simultaneously.
+- [x] **TEST-04**: User documentation — xdist usage guide in README with configuration, `-n` flag usage, supported `--dist` modes, CI recommendations, and known limitations.
+- [x] **TEST-05**: Performance benchmark — measure suite execution time with plain `pytest` (baseline, no xdist) vs `pytest -n 2/4/auto` (xdist). Report speedup factor. Track across development iterations to catch regressions.
 
 ## Deferred
 
@@ -85,11 +85,11 @@ Explicitly excluded from samstack entirely:
 | MOCK-01 | Phase 11 | Pending |
 | MOCK-02 | Phase 11 | Pending |
 | MOCK-03 | Phase 11 | Pending |
-| TEST-01 | Phase 12 | Pending |
-| TEST-02 | Phase 12 | Pending |
-| TEST-03 | Phase 12 | Pending |
-| TEST-04 | Phase 12 | Pending |
-| TEST-05 | Phase 12 | Pending |
+| TEST-01 | Phase 12 | Complete |
+| TEST-02 | Phase 12 | Complete |
+| TEST-03 | Phase 12 | Complete |
+| TEST-04 | Phase 12 | Complete |
+| TEST-05 | Phase 12 | Complete |
 
 **Coverage:**
 - v2.3.0 requirements: 22 total
