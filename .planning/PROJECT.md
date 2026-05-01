@@ -71,7 +71,15 @@ v2.3.0 — "pytest-xdist Support" — complete. All 5 phases (8-12), 9 plans shi
 
 ## Context
 
-Shipped v2.0.0 with 3 phases, 5 plans (Ryuk crash-safe infrastructure). Shipped v2.2.0 with 4 phases, 6 plans (per-function warm containers). Shipped v2.3.0 with 5 phases, 9 plans (pytest-xdist support). Total: 20 plans across 12 phases.
+Shipped v2.0.0 with 3 phases, 5 plans (Ryuk crash-safe infrastructure). Shipped v2.2.0 with 4 phases, 6 plans (per-function warm containers). Shipped v2.3.0 with 5 phases, 9 plans (pytest-xdist support) — archived at `.planning/archived/v2.3.0-pytest-xdist-support/`. Total: 20 plans across 12 phases across 3 milestones.
+
+### v2.3.0 Final Notes
+
+- 5 phases shipped: core coordination (Phase 8), Docker infra (Phase 9), SAM API/Lambda (Phase 10), mock coordination (Phase 11), integration testing/docs/benchmarking (Phase 12)
+- 9 code review findings across 3 phases — all fixed (CR-01 cross-process TOCTOU race in write_state_file fixed via FileLock + atomic write; CR-02 skip→fail corrected; lock-release race in docker_network fixed; unclosed HTTP response in pre-warm fixed)
+- One known limitation: Phase 12 HUMAN-UAT remains partial (5 Docker-dependent tests pending) — deferred to post-milestone manual verification
+- `--dist=each` and `--dist=no` modes not supported (documented in README)
+- Key architectural insight: `localstack_endpoint` passthrough to shared state unblocked all resource fixtures with zero changes to resources.py/plugin.py
 
 v2.2.0 features: per-function warm container configuration via `warm_functions` in settings/fixtures, selective pre-warming for start-lambda (boto3 invoke) and start-api (HTTP GET), init-marker UUID pattern for deterministic warm container verification, warm sub-container Ryuk cascade crash test, and complete README documentation.
 
@@ -124,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-05-01 after Phase 12 (integration-testing-ci-docs-benchmarking) — v2.3.0 complete*
+*Last updated: 2026-05-01 — v2.3.0 milestone complete and archived*
