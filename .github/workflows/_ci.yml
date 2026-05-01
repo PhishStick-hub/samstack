@@ -109,7 +109,7 @@ jobs:
         run: uv run pytest tests/warm/ -v --timeout=300
 
       - name: Run xdist integration tests
-        run: uv run pytest tests/xdist/ -v -n 2 --timeout=300 --ignore=tests/xdist/test_crash.py
+        run: uv run pytest tests/xdist/ -v -n 2 --timeout=300 --ignore=tests/xdist/test_crash/
 
       - name: Run xdist crash test
         continue-on-error: true
