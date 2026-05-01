@@ -5,12 +5,21 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import Callable, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from samstack._xdist import (
+    get_worker_id,
+    is_controller,
+    wait_for_state_key,
+    write_state_file,
+)
 from samstack.mock.types import Call, CallList
 from samstack.resources.s3 import S3Bucket
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 class LambdaMock:
@@ -78,6 +87,7 @@ class LambdaMock:
 @pytest.fixture(scope="session")
 def make_lambda_mock(
     make_s3_bucket: Callable[[str], S3Bucket],
+    s3_client: "S3Client",
     sam_env_vars: dict[str, dict[str, str]],
 ) -> Iterator[Callable[..., LambdaMock]]:
     """Session-scoped factory that wires up a mock Lambda.
@@ -115,7 +125,32 @@ def make_lambda_mock(
         alias: str,
         bucket: S3Bucket | None = None,
     ) -> LambdaMock:
-        spy_bucket = bucket if bucket is not None else make_s3_bucket(f"mock-{alias}")
+        # D-06: If user provides a pre-existing bucket, skip all xdist logic
+        if bucket is not None:
+            spy_bucket = bucket
+        else:
+            worker_id = get_worker_id()
+            if not is_controller(worker_id):
+                # gw1+ path (D-01, D-03): wait for gw0 to create shared spy bucket
+                shared_bucket_name = wait_for_state_key(
+                    f"mock_spy_bucket_{alias}", timeout=120
+                )
+                spy_bucket = S3Bucket(name=shared_bucket_name, client=s3_client)
+            else:
+                # gw0 / master path (D-01): create spy bucket + write name to state
+                try:
+                    spy_bucket = make_s3_bucket(f"mock-{alias}")
+                except Exception as exc:
+                    if worker_id == "gw0":
+                        write_state_file(
+                            "error",
+                            f"mock spy bucket 'mock-{alias}' creation failed: {exc}",
+                        )
+                    raise
+                if worker_id == "gw0":
+                    write_state_file(f"mock_spy_bucket_{alias}", spy_bucket.name)
+
+        # D-05: Mutate sam_env_vars on ALL workers for in-memory consistency
         sam_env_vars[function_name] = {
             "MOCK_SPY_BUCKET": spy_bucket.name,
             "MOCK_FUNCTION_NAME": alias,

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from samstack.mock.fixture import LambdaMock, make_lambda_mock
+import samstack.mock.fixture as mf
+from samstack.mock.fixture import LambdaMock
 from samstack.resources.s3 import S3Bucket
+
+# Access raw fixture function (bypass pytest decorator) — pattern from existing xdist tests
+_make_lambda_mock_gen = getattr(mf.make_lambda_mock, "__wrapped__")
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +27,7 @@ def _get_make(
     """Invoke ``make_lambda_mock`` generator and return the _make factory."""
     if sam_env_vars is None:
         sam_env_vars = {}
-    gen = make_lambda_mock(make_s3_bucket, s3_client, sam_env_vars)
+    gen = _make_lambda_mock_gen(make_s3_bucket, s3_client, sam_env_vars)
     _make = next(gen)
     return _make
 
