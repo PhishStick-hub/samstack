@@ -117,7 +117,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 11-01-PLAN.md — Add xdist-aware gw0/gw1+ split to `make_lambda_mock` fixture + unit tests
+- [x] 11-01-PLAN.md — Add xdist-aware gw0/gw1+ split to `make_lambda_mock` fixture + unit tests
 
 #### Phase 12: Integration Testing, CI, Docs, & Benchmarking
 **Goal**: End-to-end validation of xdist support across all fixture types, crash recovery verification, documented usage, and measured performance
@@ -129,7 +129,11 @@ Plans:
   3. A resource parallelism test runs `-n 4` with simultaneous S3/DynamoDB/SQS/SNS read/write operations from all workers and passes without cross-worker interference
   4. The README contains an "xdist parallel testing" section with configuration instructions, `-n` flag usage, supported `--dist` modes, CI recommendations, and documented known limitations
   5. A benchmark reports baseline (plain `pytest`) vs. xdist (`-n 2/4/auto`) execution times with a measurable speedup factor
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Integration test suite: xdist basic tests, resource parallelism, crash recovery
+- [ ] 12-02-PLAN.md — Benchmark script, README xdist section, CI updates, dev dependencies
 
 ## Progress
 
@@ -140,5 +144,5 @@ Execution order: 8 → 9 → 10 → 11 → 12
 | 8. Core Xdist Coordination | 2/2 | Complete | 2026-04-30 |
 | 9. Docker Infra Xdist-Awareness | 2/2 | Complete | 2026-05-01 |
 | 10. SAM API + Lambda Xdist-Awareness | 2/2 | Complete   | 2026-04-30 |
-| 11. Mock Coordination | 0/1 | Ready to execute | - |
-| 12. Integration Testing, CI, Docs | 0/TBD | Not started | - |
+| 11. Mock Coordination | 1/1 | Complete   | 2026-05-01 |
+| 12. Integration Testing, CI, Docs | 0/2 | Planned | - |
