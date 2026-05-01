@@ -103,6 +103,7 @@ jobs:
             --ignore=tests/test_process.py \
             --ignore=tests/test_errors.py \
             --ignore=tests/warm \
+            --ignore=tests/test_subcontainer_teardown.py \
             --ignore=tests/test_ryuk_sam_labels.py \
             --ignore=tests/integration/test_ryuk_container_labels.py \
             --ignore=tests/integration/test_ryuk_crash.py \
@@ -110,7 +111,7 @@ jobs:
             --ignore=tests/xdist
 
       - name: Run integration tests (session-ID checks + crash — incompatible with xdist)
-        run: uv run pytest tests/test_ryuk_sam_labels.py tests/integration/test_ryuk_container_labels.py tests/integration/test_ryuk_crash.py -v --timeout=300
+        run: uv run pytest tests/test_subcontainer_teardown.py tests/test_ryuk_sam_labels.py tests/integration/test_ryuk_container_labels.py tests/integration/test_ryuk_crash.py -v --timeout=300
 
       - name: Run warm integration tests
         run: uv run pytest tests/warm/ -v --timeout=300
