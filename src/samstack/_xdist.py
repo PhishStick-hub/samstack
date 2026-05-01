@@ -304,6 +304,7 @@ def xdist_shared_session(
     on_controller: Callable[[], "contextlib.AbstractContextManager[tuple[T, S]]"],
     on_worker: Callable[[S], T] = lambda v: v,  # type: ignore[assignment,return-value]
     timeout: float = 120.0,
+    error_prefix: str | None = None,
 ) -> Iterator[T]:
     """Coordinate a shared session-scoped resource across xdist workers.
 
@@ -318,6 +319,10 @@ def xdist_shared_session(
     - ``on_worker``     — maps the ``state_value`` read from shared state back
       to a ``user_resource`` (typically a lightweight proxy). Defaults to
       identity, useful when the state value *is* the resource (a URL string).
+    - ``error_prefix``  — optional human-readable prefix prepended to the
+      controller-side failure message before it's published to shared state.
+      Workers see ``"<prefix>: <exception>"``; helpful when the exception type
+      alone doesn't communicate which fixture failed.
 
     Roles:
 
@@ -351,6 +356,7 @@ def xdist_shared_session(
             yield resource
     except Exception as exc:
         if role is Role.CONTROLLER:
+            message = f"{error_prefix}: {exc}" if error_prefix else str(exc)
             with contextlib.suppress(Exception):
-                write_error_for(state_key, str(exc))
+                write_error_for(state_key, message)
         raise

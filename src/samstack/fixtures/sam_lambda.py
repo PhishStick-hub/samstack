@@ -124,6 +124,7 @@ def sam_lambda_endpoint(
     with xdist_shared_session(
         StateKeys.SAM_LAMBDA_ENDPOINT,
         on_controller=_on_controller,
+        error_prefix="sam_lambda_endpoint container failed to start",
     ) as endpoint:
         yield endpoint
 

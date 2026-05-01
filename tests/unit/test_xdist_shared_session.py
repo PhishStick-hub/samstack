@@ -118,6 +118,28 @@ class TestControllerPath:
         assert args[0] == "k"  # per-key error slot, not the legacy 'error'
         assert "kaboom" in args[1]
 
+    def test_error_prefix_wraps_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("samstack._xdist.worker_role", lambda: Role.CONTROLLER)
+
+        @contextmanager
+        def _boom() -> Generator[tuple[str, str], None, None]:
+            raise RuntimeError("kaboom")
+            yield
+
+        write_err = MagicMock()
+        monkeypatch.setattr("samstack._xdist.write_error_for", write_err)
+
+        with pytest.raises(RuntimeError):
+            with xdist_shared_session(
+                "k",
+                on_controller=_boom,
+                error_prefix="sam_api container failed to start",
+            ):
+                pass
+
+        args, _ = write_err.call_args
+        assert args[1] == "sam_api container failed to start: kaboom"
+
 
 # ---------------------------------------------------------------------------
 # Worker path

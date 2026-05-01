@@ -135,5 +135,6 @@ def sam_api(
     with xdist_shared_session(
         StateKeys.SAM_API_ENDPOINT,
         on_controller=_on_controller,
+        error_prefix="sam_api container failed to start",
     ) as endpoint:
         yield endpoint
