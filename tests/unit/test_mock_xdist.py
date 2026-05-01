@@ -59,7 +59,6 @@ class TestMakeLambdaMockXdist:
         monkeypatch.setattr(
             "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
         )
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
 
@@ -99,7 +98,6 @@ class TestMakeLambdaMockXdist:
         mock_wait = MagicMock(return_value=shared_bucket_name)
 
         monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.WORKER)
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
 
@@ -134,7 +132,6 @@ class TestMakeLambdaMockXdist:
         monkeypatch.setattr(
             "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
         )
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", MagicMock())
 
@@ -158,7 +155,6 @@ class TestMakeLambdaMockXdist:
         sam_env_vars: dict[str, dict[str, str]] = {}
 
         monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.WORKER)
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
         monkeypatch.setattr(
             "samstack.mock.fixture.wait_for_state_key",
@@ -191,7 +187,6 @@ class TestMakeLambdaMockXdist:
             )
         )
         monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.WORKER)
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
 
@@ -217,7 +212,6 @@ class TestMakeLambdaMockXdist:
         monkeypatch.setattr(
             "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
         )
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
 
@@ -247,7 +241,6 @@ class TestMakeLambdaMockXdist:
         mock_wait = MagicMock()
 
         monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.MASTER)
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
 
@@ -280,7 +273,6 @@ class TestMakeLambdaMockXdist:
         monkeypatch.setattr(
             "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
         )
-        monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", MagicMock())
 

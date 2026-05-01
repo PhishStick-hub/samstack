@@ -5,18 +5,12 @@ import logging
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from contextlib import contextmanager
 
 import pytest
 
 from samstack._errors import SamStartupError
-from samstack._xdist import (
-    Role,
-    StateKeys,
-    wait_for_state_key,
-    worker_role,
-    write_error_for,
-    write_state_file,
-)
+from samstack._xdist import StateKeys, xdist_shared_session
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
 
@@ -117,16 +111,9 @@ def sam_api(
     gw1+ workers poll for the endpoints and yield them without any Docker calls.
     Logs written to {log_dir}/start-api.log and {log_dir}/start-lambda.log.
     """
-    role = worker_role()
 
-    # === Worker path: wait for controller, yield URL, no Docker ===
-    if role is Role.WORKER:
-        endpoint = wait_for_state_key(StateKeys.SAM_API_ENDPOINT, timeout=120)
-        yield endpoint
-        return
-
-    # === Master / controller path: start container + pre-warm ===
-    try:
+    @contextmanager
+    def _on_controller() -> Iterator[tuple[str, str]]:
         with _run_sam_service(
             settings=samstack_settings,
             docker_network=docker_network,
@@ -143,13 +130,10 @@ def sam_api(
                 endpoint,
                 _filter_warm_routes(warm_api_routes, warm_functions),
             )
-            if role is Role.CONTROLLER:
-                write_state_file(StateKeys.SAM_API_ENDPOINT, endpoint)
-            yield endpoint
-    except Exception as exc:
-        if role is Role.CONTROLLER:
-            write_error_for(
-                StateKeys.SAM_API_ENDPOINT,
-                f"sam_api container failed to start: {exc}",
-            )
-        raise
+            yield endpoint, endpoint
+
+    with xdist_shared_session(
+        StateKeys.SAM_API_ENDPOINT,
+        on_controller=_on_controller,
+    ) as endpoint:
+        yield endpoint

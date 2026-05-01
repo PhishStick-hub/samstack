@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal
 
 import boto3
@@ -13,14 +14,7 @@ if TYPE_CHECKING:
 
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamStartupError
-from samstack._xdist import (
-    Role,
-    StateKeys,
-    wait_for_state_key,
-    worker_role,
-    write_error_for,
-    write_state_file,
-)
+from samstack._xdist import StateKeys, xdist_shared_session
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
 
@@ -108,16 +102,9 @@ def sam_lambda_endpoint(
     gw1+ workers poll for the endpoint and yield it without any Docker calls.
     Logs written to {log_dir}/start-lambda.log.
     """
-    role = worker_role()
 
-    # === Worker path: wait for controller, yield URL, no Docker ===
-    if role is Role.WORKER:
-        endpoint = wait_for_state_key(StateKeys.SAM_LAMBDA_ENDPOINT, timeout=120)
-        yield endpoint
-        return
-
-    # === Master / controller path: start container + pre-warm ===
-    try:
+    @contextmanager
+    def _on_controller() -> Iterator[tuple[str, str]]:
         with _run_sam_service(
             settings=samstack_settings,
             docker_network=docker_network,
@@ -131,16 +118,14 @@ def sam_lambda_endpoint(
             network_alias="sam-lambda",
         ) as endpoint:
             _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
-            if role is Role.CONTROLLER:
-                write_state_file(StateKeys.SAM_LAMBDA_ENDPOINT, endpoint)
-            yield endpoint
-    except Exception as exc:
-        if role is Role.CONTROLLER:
-            write_error_for(
-                StateKeys.SAM_LAMBDA_ENDPOINT,
-                f"sam_lambda_endpoint container failed to start: {exc}",
-            )
-        raise
+            # state_value == user_resource == the endpoint URL.
+            yield endpoint, endpoint
+
+    with xdist_shared_session(
+        StateKeys.SAM_LAMBDA_ENDPOINT,
+        on_controller=_on_controller,
+    ) as endpoint:
+        yield endpoint
 
 
 @pytest.fixture(scope="session")
