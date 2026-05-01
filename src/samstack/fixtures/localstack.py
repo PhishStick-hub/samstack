@@ -16,12 +16,15 @@ from testcontainers.localstack import LocalStackContainer
 from samstack._errors import DockerNetworkError, LocalStackStartupError
 from samstack._process import stream_logs_to_file
 from samstack._xdist import (
+    Role,
+    StateKeys,
     acquire_infra_lock,
     get_worker_id,
-    is_controller,
-    read_state_file,
     release_infra_lock,
     wait_for_state_key,
+    wait_for_workers_done,
+    worker_role,
+    write_error_for,
     write_state_file,
 )
 from samstack.fixtures._sam_container import (
@@ -93,10 +96,9 @@ def docker_network_name(request: pytest.FixtureRequest) -> str:
     string — the real name is resolved inside ``docker_network`` by polling
     shared state, making the coordination dependency explicit there.
     """
-    worker_id = get_worker_id()
-    if is_controller(worker_id):
+    if worker_role() is not Role.WORKER:
         return f"samstack-{uuid4().hex[:8]}"
-    # gw1+ workers do not generate a name; docker_network polls shared state.
+    # Workers (gw1+) do not generate a name; docker_network polls shared state.
     return ""
 
 
@@ -104,20 +106,30 @@ def docker_network_name(request: pytest.FixtureRequest) -> str:
 def docker_network(docker_network_name: str) -> Iterator[str]:
     """Create a Docker bridge network shared by LocalStack and SAM containers.
 
-    Under xdist: gw0/master creates the network; gw1+ waits for gw0 to write
-    the network name to shared state (coordination happens here, not in
-    ``docker_network_name``, so the dependency is explicit).
+    Under xdist: the controller (gw0) creates the network and writes its name
+    to shared state; workers (gw1+) read the name and proxy. The controller
+    additionally waits for all workers to signal completion before tearing
+    down — this gates teardown of every fixture transitively depending on
+    docker_network (LocalStack, sam_api, sam_lambda_endpoint), preventing
+    race conditions where a faster controller would tear down shared infra
+    while slower workers are still issuing requests.
     """
-    worker_id = get_worker_id()
+    role = worker_role()
 
-    # === gw1+ path: wait for gw0 to create the network, then proxy ===
-    if not is_controller(worker_id):
-        resolved_name = wait_for_state_key("docker_network", timeout=120)
-        yield resolved_name
+    # === Worker path: wait for controller to create the network, then proxy ===
+    if role is Role.WORKER:
+        resolved_name = wait_for_state_key(StateKeys.DOCKER_NETWORK, timeout=120)
+        try:
+            yield resolved_name
+        finally:
+            # Signal completion so the controller can safely tear down shared
+            # infrastructure (network + LocalStack + SAM containers).
+            with contextlib.suppress(Exception):
+                write_state_file(StateKeys.worker_done(get_worker_id()), True)
         return
 
-    # === gw0 / master path: create Docker infrastructure ===
-    if worker_id == "gw0":
+    # === Master / controller path: create Docker infrastructure ===
+    if role is Role.CONTROLLER:
         if not acquire_infra_lock():
             pytest.fail(
                 "gw0 failed to acquire infrastructure lock — "
@@ -126,26 +138,32 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
             )
         try:
             network = _create_and_register_network(docker_network_name)
-            write_state_file("docker_network", docker_network_name)
+            write_state_file(StateKeys.DOCKER_NETWORK, docker_network_name)
         except Exception:
-            write_state_file(
-                "error",
+            write_error_for(
+                StateKeys.DOCKER_NETWORK,
                 f"Docker network creation failed: {docker_network_name}",
             )
             release_infra_lock()
             raise
     else:
-        # master (no xdist) — existing behavior, no state file needed
+        # MASTER (no xdist) — existing behavior, no state file needed
         network = _create_and_register_network(docker_network_name)
 
     try:
         yield docker_network_name
     finally:
-        if worker_id == "gw0":
+        # Wait for all workers to finish before tearing down shared infra.
+        # All controller-owned shared resources (LocalStack, sam_api,
+        # sam_lambda_endpoint) depend on docker_network, so gating teardown
+        # here gates all of them.
+        if role is Role.CONTROLLER:
+            wait_for_workers_done()
+        try:
             _teardown_network(network, docker_network_name)
-            release_infra_lock()
-        else:
-            _teardown_network(network, docker_network_name)
+        finally:
+            if role is Role.CONTROLLER:
+                release_infra_lock()
 
 
 # — LocalStack container -------------------------------------------------------
@@ -171,45 +189,8 @@ class _LocalStackContainerProxy:
         return None
 
     def stop(self) -> None:
-        """gw1+ does not own the container — no-op."""
-
-
-def _wait_for_workers_done(timeout: float = 300.0) -> None:
-    """Wait for all gw1+ workers to signal done before gw0 tears down.
-
-    Under xdist, gw0 owns the shared Docker infrastructure. Teardown
-    must wait until every gw1+ worker has finished using it, otherwise
-    gw1+ tests will fail with ConnectionRefusedError.
-
-    Workers signal completion by writing ``{worker_id}_done`` keys to
-    shared state during their own fixture teardown.
-    """
-    import os as _os
-    import time as _time
-
-    worker_count_str = _os.environ.get("PYTEST_XDIST_WORKER_COUNT")
-    if not worker_count_str:
-        return  # Not running under xdist
-    worker_count = int(worker_count_str)
-    if worker_count <= 1:
-        return  # Single worker, no need to wait
-
-    expected = {f"gw{i}_done" for i in range(1, worker_count)}
-    deadline = _time.monotonic() + timeout
-    while expected and _time.monotonic() < deadline:
-        state = read_state_file()
-        found = expected & set(state)
-        expected -= found
-        if not expected:
-            return
-        _time.sleep(0.5)
-
-    if expected:
-        import pytest
-
-        pytest.fail(
-            f"Timed out after {timeout}s waiting for workers to complete: {expected}"
-        )
+        """No-op — workers don't own the container, controller stops it."""
+        return None
 
 
 @pytest.fixture(scope="session")
@@ -219,35 +200,36 @@ def localstack_container(
 ) -> Iterator[LocalStackContainer | _LocalStackContainerProxy]:
     """Start LocalStack and connect it to the shared Docker network.
 
-    Under xdist: gw0 starts LocalStack and writes its endpoint to shared
-    state; gw1+ waits for the endpoint and yields a lightweight proxy
-    without any Docker API calls.
+    Under xdist: the controller starts LocalStack and writes its endpoint
+    to shared state; workers wait for the endpoint and yield a lightweight
+    proxy without any Docker API calls.
 
-    Teardown coordination: gw1+ writes a ``{worker_id}_done`` key to shared
-    state after yielding the proxy (i.e. after its session ends).  gw0 polls
-    for all gw1+ ``_done`` keys before stopping the container, preventing
-    premature teardown while other workers are still running.
+    Teardown ordering: workers signal completion via ``docker_network``'s
+    teardown (the shared lowest-common dependency); the controller's
+    ``docker_network`` teardown blocks on those signals before *any*
+    controller-owned resource (this fixture, sam_api, sam_lambda_endpoint)
+    is allowed to stop. So this fixture itself does not need to wait —
+    pytest's fixture-finalization order guarantees we run before
+    ``docker_network``'s teardown completes.
     """
-    worker_id = get_worker_id()
+    role = worker_role()
 
-    # === gw1+ path: wait for gw0, yield proxy, no Docker ===
-    if not is_controller(worker_id):
-        endpoint = wait_for_state_key("localstack_endpoint", timeout=120)
+    # === Worker path: wait for controller, yield proxy, no Docker ===
+    if role is Role.WORKER:
+        endpoint = wait_for_state_key(StateKeys.LOCALSTACK_ENDPOINT, timeout=120)
         yield _LocalStackContainerProxy(endpoint)
-        # Signal completion so gw0 can safely tear down.
-        write_state_file(f"{worker_id}_done", True)
         return
 
-    # === gw0 / master path: create and start LocalStack ===
+    # === Master / controller path: create and start LocalStack ===
     container = LocalStackContainer(image=samstack_settings.localstack_image)
     container.with_volume_mapping(DOCKER_SOCKET, DOCKER_SOCKET, "rw")
 
     try:
         container.start()
     except Exception:
-        if worker_id == "gw0":
-            write_state_file(
-                "error",
+        if role is Role.CONTROLLER:
+            write_error_for(
+                StateKeys.LOCALSTACK_ENDPOINT,
                 "LocalStack container failed to start",
             )
         raise
@@ -257,9 +239,9 @@ def localstack_container(
     inner = container.get_wrapped_container()
     if inner is None:
         container.stop()
-        if worker_id == "gw0":
-            write_state_file(
-                "error",
+        if role is Role.CONTROLLER:
+            write_error_for(
+                StateKeys.LOCALSTACK_ENDPOINT,
                 "LocalStack container exited before start",
             )
         raise LocalStackStartupError(log_tail="container exited before start")
@@ -270,24 +252,19 @@ def localstack_container(
         _connect_container_with_alias(client, docker_network, container, "localstack")
     except Exception as exc:
         container.stop()
-        if worker_id == "gw0":
-            write_state_file(
-                "error",
+        if role is Role.CONTROLLER:
+            write_error_for(
+                StateKeys.LOCALSTACK_ENDPOINT,
                 f"LocalStack network connection failed: {exc}",
             )
         raise DockerNetworkError(name=docker_network, reason=str(exc)) from exc
 
-    # Write endpoint to shared state so gw1+ can read it
-    if worker_id == "gw0":
-        write_state_file("localstack_endpoint", container.get_url())
+    if role is Role.CONTROLLER:
+        write_state_file(StateKeys.LOCALSTACK_ENDPOINT, container.get_url())
 
     try:
         yield container
     finally:
-        # Under xdist, wait for all gw1+ workers to signal done before
-        # tearing down the shared infrastructure.
-        if worker_id == "gw0":
-            _wait_for_workers_done()
         try:
             _disconnect_container_from_network(client, docker_network, container)
         except Exception as exc:

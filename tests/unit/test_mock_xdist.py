@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 
 import samstack.mock.fixture as mf
+from samstack._constants import LOCALSTACK_INTERNAL_URL
+from samstack._xdist import Role, StateKeys
 from samstack.mock.fixture import LambdaMock
 from samstack.resources.s3 import S3Bucket
 
@@ -54,7 +56,9 @@ class TestMakeLambdaMockXdist:
         mock_write = MagicMock()
         mock_wait = MagicMock()
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(
+            "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
+        )
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
@@ -68,7 +72,7 @@ class TestMakeLambdaMockXdist:
 
         # Assert: state key written
         mock_write.assert_called_once_with(
-            "mock_spy_bucket_mock-a", "mock-mock-a-abc12345"
+            StateKeys.mock_spy_bucket("mock-a"), "mock-mock-a-abc12345"
         )
 
         # Assert: gw1+ wait NOT called
@@ -94,7 +98,7 @@ class TestMakeLambdaMockXdist:
         mock_write = MagicMock()
         mock_wait = MagicMock(return_value=shared_bucket_name)
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw1")
+        monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.WORKER)
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
@@ -104,7 +108,9 @@ class TestMakeLambdaMockXdist:
         result = _make("TestFunc", alias="mock-a")
 
         # Assert: wait_for_state_key called with correct key and timeout
-        mock_wait.assert_called_once_with("mock_spy_bucket_mock-a", timeout=120)
+        mock_wait.assert_called_once_with(
+            StateKeys.mock_spy_bucket("mock-a"), timeout=120
+        )
 
         # Assert: make_s3_bucket NOT called on gw1+
         make_s3_bucket.assert_not_called()
@@ -125,7 +131,9 @@ class TestMakeLambdaMockXdist:
         make_s3_bucket = MagicMock(return_value=mock_bucket)
         sam_env_vars: dict[str, dict[str, str]] = {}
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(
+            "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
+        )
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", MagicMock())
@@ -138,7 +146,7 @@ class TestMakeLambdaMockXdist:
         assert sam_env_vars["TestFunc"]["MOCK_SPY_BUCKET"] == "mock-mock-a-abc12345"
         assert sam_env_vars["TestFunc"]["MOCK_FUNCTION_NAME"] == "mock-a"
         assert (
-            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
+            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == LOCALSTACK_INTERNAL_URL
         )
 
     def test_env_vars_set_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,7 +157,7 @@ class TestMakeLambdaMockXdist:
         make_s3_bucket = MagicMock()
         sam_env_vars: dict[str, dict[str, str]] = {}
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw1")
+        monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.WORKER)
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
         monkeypatch.setattr(
@@ -165,7 +173,7 @@ class TestMakeLambdaMockXdist:
         assert sam_env_vars["TestFunc"]["MOCK_SPY_BUCKET"] == shared_bucket_name
         assert sam_env_vars["TestFunc"]["MOCK_FUNCTION_NAME"] == "mock-a"
         assert (
-            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
+            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == LOCALSTACK_INTERNAL_URL
         )
 
     def test_gw1_fails_on_error_state_key(
@@ -182,7 +190,7 @@ class TestMakeLambdaMockXdist:
                 "gw0 infrastructure startup failed: mock spy bucket creation failed"
             )
         )
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw1")
+        monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.WORKER)
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
@@ -206,7 +214,9 @@ class TestMakeLambdaMockXdist:
         mock_write = MagicMock()
         mock_wait = MagicMock()
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(
+            "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
+        )
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
@@ -236,7 +246,7 @@ class TestMakeLambdaMockXdist:
         mock_write = MagicMock()
         mock_wait = MagicMock()
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "master")
+        monkeypatch.setattr("samstack.mock.fixture.worker_role", lambda: Role.MASTER)
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", mock_write)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
@@ -267,7 +277,9 @@ class TestMakeLambdaMockXdist:
         make_s3_bucket = MagicMock(return_value=mock_bucket)
         sam_env_vars: dict[str, dict[str, str]] = {}
 
-        monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(
+            "samstack.mock.fixture.worker_role", lambda: Role.CONTROLLER
+        )
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: True)
         monkeypatch.setattr("samstack.mock.fixture.write_state_file", MagicMock())
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", MagicMock())
@@ -276,5 +288,5 @@ class TestMakeLambdaMockXdist:
         _make("TestFunc", alias="mock-b")
 
         assert (
-            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
+            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == LOCALSTACK_INTERNAL_URL
         )

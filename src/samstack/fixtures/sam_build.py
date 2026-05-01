@@ -5,13 +5,19 @@ from pathlib import Path
 
 import pytest
 
-from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
+from samstack._constants import (
+    LOCALSTACK_ACCESS_KEY,
+    LOCALSTACK_INTERNAL_URL,
+    LOCALSTACK_SECRET_KEY,
+)
 from samstack._errors import SamBuildError
 from samstack._process import run_one_shot_container
 from samstack._xdist import (
-    get_worker_id,
-    is_controller,
+    Role,
+    StateKeys,
     wait_for_state_key,
+    worker_role,
+    write_error_for,
     write_state_file,
 )
 from samstack.fixtures._sam_container import DOCKER_SOCKET, _is_ci
@@ -52,10 +58,10 @@ def sam_env_vars(samstack_settings: SamStackSettings) -> dict[str, dict[str, str
     """
     return {
         "Parameters": {
-            "AWS_ENDPOINT_URL_S3": "http://localstack:4566",
-            "AWS_ENDPOINT_URL_DYNAMODB": "http://localstack:4566",
-            "AWS_ENDPOINT_URL_SQS": "http://localstack:4566",
-            "AWS_ENDPOINT_URL_SNS": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_S3": LOCALSTACK_INTERNAL_URL,
+            "AWS_ENDPOINT_URL_DYNAMODB": LOCALSTACK_INTERNAL_URL,
+            "AWS_ENDPOINT_URL_SQS": LOCALSTACK_INTERNAL_URL,
+            "AWS_ENDPOINT_URL_SNS": LOCALSTACK_INTERNAL_URL,
             "AWS_ENDPOINT_URL_LAMBDA": f"http://sam-lambda:{samstack_settings.lambda_port}",
             "AWS_DEFAULT_REGION": samstack_settings.region,
             "AWS_ACCESS_KEY_ID": LOCALSTACK_ACCESS_KEY,
@@ -101,14 +107,14 @@ def sam_build(
     shared state; gw1+ workers poll for the flag and proceed without
     re-running the build (timeout 300s).
     """
-    worker_id = get_worker_id()
+    role = worker_role()
 
-    # === gw1+ path: wait for gw0's build, skip build ===
-    if not is_controller(worker_id):
-        wait_for_state_key("build_complete", timeout=300)
+    # === Worker path: wait for controller's build, skip build ===
+    if role is Role.WORKER:
+        wait_for_state_key(StateKeys.BUILD_COMPLETE, timeout=300)
         return
 
-    # === gw0 / master path: run sam build ===
+    # === Master / controller path: run sam build ===
     log_dir = samstack_settings.project_root / samstack_settings.log_dir
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -143,25 +149,22 @@ def sam_build(
             environment={"DOCKER_DEFAULT_PLATFORM": samstack_settings.docker_platform},
         )
         if exit_code != 0:
-            if worker_id == "gw0":
-                write_state_file(
-                    "error",
+            if role is Role.CONTROLLER:
+                write_error_for(
+                    StateKeys.BUILD_COMPLETE,
                     f"sam build failed with exit code {exit_code}",
                 )
             raise SamBuildError(logs=logs)
     except SamBuildError:
         raise
     except Exception as exc:
-        if worker_id == "gw0":
-            write_state_file(
-                "error",
-                f"sam build failed: {exc}",
-            )
+        if role is Role.CONTROLLER:
+            write_error_for(StateKeys.BUILD_COMPLETE, f"sam build failed: {exc}")
         raise
 
     # Signal gw1+ that the build is complete
-    if worker_id == "gw0":
-        write_state_file("build_complete", True)
+    if role is Role.CONTROLLER:
+        write_state_file(StateKeys.BUILD_COMPLETE, True)
 
     if samstack_settings.add_gitignore:
         _add_gitignore_entry(samstack_settings.project_root, samstack_settings.log_dir)

@@ -14,9 +14,11 @@ if TYPE_CHECKING:
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamStartupError
 from samstack._xdist import (
-    get_worker_id,
-    is_controller,
+    Role,
+    StateKeys,
     wait_for_state_key,
+    worker_role,
+    write_error_for,
     write_state_file,
 )
 from samstack.fixtures._sam_container import _run_sam_service
@@ -106,15 +108,15 @@ def sam_lambda_endpoint(
     gw1+ workers poll for the endpoint and yield it without any Docker calls.
     Logs written to {log_dir}/start-lambda.log.
     """
-    worker_id = get_worker_id()
+    role = worker_role()
 
-    # === gw1+ path: wait for gw0, yield URL, no Docker ===
-    if not is_controller(worker_id):
-        endpoint = wait_for_state_key("sam_lambda_endpoint", timeout=120)
+    # === Worker path: wait for controller, yield URL, no Docker ===
+    if role is Role.WORKER:
+        endpoint = wait_for_state_key(StateKeys.SAM_LAMBDA_ENDPOINT, timeout=120)
         yield endpoint
         return
 
-    # === gw0 / master path: start container + pre-warm ===
+    # === Master / controller path: start container + pre-warm ===
     try:
         with _run_sam_service(
             settings=samstack_settings,
@@ -129,13 +131,13 @@ def sam_lambda_endpoint(
             network_alias="sam-lambda",
         ) as endpoint:
             _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
-            if worker_id == "gw0":
-                write_state_file("sam_lambda_endpoint", endpoint)
+            if role is Role.CONTROLLER:
+                write_state_file(StateKeys.SAM_LAMBDA_ENDPOINT, endpoint)
             yield endpoint
     except Exception as exc:
-        if worker_id == "gw0":
-            write_state_file(
-                "error",
+        if role is Role.CONTROLLER:
+            write_error_for(
+                StateKeys.SAM_LAMBDA_ENDPOINT,
                 f"sam_lambda_endpoint container failed to start: {exc}",
             )
         raise

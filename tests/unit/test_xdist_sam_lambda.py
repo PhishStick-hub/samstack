@@ -9,6 +9,7 @@ import pytest
 
 import samstack.fixtures.sam_lambda as sl
 from samstack._errors import SamStartupError
+from samstack._xdist import Role, StateKeys
 
 # Access raw fixture function (bypass pytest decorator)
 _sam_lambda_gen = getattr(sl.sam_lambda_endpoint, "__wrapped__")
@@ -52,7 +53,7 @@ class TestSamLambdaEndpointMaster:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Master path: runs container, pre-warms functions, does NOT write to state."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "master")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.MASTER)
 
         monkeypatch.setattr(
             sl,
@@ -80,7 +81,7 @@ class TestSamLambdaEndpointMaster:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Master path: uses EAGER warm mode when warm_functions is empty."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "master")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.MASTER)
 
         # Capture _run_sam_service call args to verify warm_containers
         run_spy = MagicMock()
@@ -110,7 +111,7 @@ class TestSamLambdaEndpointMaster:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Master path: re-raises SamStartupError without writing to state file."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "master")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.MASTER)
 
         monkeypatch.setattr(
             sl,
@@ -147,7 +148,7 @@ class TestSamLambdaEndpointGw0:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw0 path: writes sam_lambda_endpoint to shared state after pre-warm."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.CONTROLLER)
 
         monkeypatch.setattr(
             sl,
@@ -158,6 +159,7 @@ class TestSamLambdaEndpointGw0:
 
         write_spy = MagicMock()
         monkeypatch.setattr(sl, "write_state_file", write_spy)
+        monkeypatch.setattr(sl, "write_error_for", MagicMock())
 
         mock_settings = _make_mock_settings()
         gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
@@ -165,14 +167,14 @@ class TestSamLambdaEndpointGw0:
 
         assert result == "http://127.0.0.1:3001"
         write_spy.assert_called_once_with(
-            "sam_lambda_endpoint", "http://127.0.0.1:3001"
+            StateKeys.SAM_LAMBDA_ENDPOINT, "http://127.0.0.1:3001"
         )
 
     def test_writes_error_on_pre_warm_failure(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw0 path: writes error key when _pre_warm_functions fails, re-raises."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.CONTROLLER)
 
         monkeypatch.setattr(
             sl,
@@ -189,8 +191,9 @@ class TestSamLambdaEndpointGw0:
             ),
         )
 
-        write_spy = MagicMock()
-        monkeypatch.setattr(sl, "write_state_file", write_spy)
+        error_spy = MagicMock()
+        monkeypatch.setattr(sl, "write_error_for", error_spy)
+        monkeypatch.setattr(sl, "write_state_file", MagicMock())
 
         mock_settings = _make_mock_settings()
         gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
@@ -198,16 +201,16 @@ class TestSamLambdaEndpointGw0:
         with pytest.raises(SamStartupError):
             next(gen)
 
-        write_spy.assert_called_once()
-        args, _ = write_spy.call_args
-        assert args[0] == "error"
+        error_spy.assert_called_once()
+        args, _ = error_spy.call_args
+        assert args[0] == StateKeys.SAM_LAMBDA_ENDPOINT
         assert "sam_lambda_endpoint container failed to start" in str(args[1])
 
     def test_writes_error_on_container_failure(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw0 path: writes error key when _run_sam_service fails, re-raises."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.CONTROLLER)
 
         monkeypatch.setattr(
             sl,
@@ -221,8 +224,9 @@ class TestSamLambdaEndpointGw0:
 
         monkeypatch.setattr(sl, "_pre_warm_functions", MagicMock())
 
-        write_spy = MagicMock()
-        monkeypatch.setattr(sl, "write_state_file", write_spy)
+        error_spy = MagicMock()
+        monkeypatch.setattr(sl, "write_error_for", error_spy)
+        monkeypatch.setattr(sl, "write_state_file", MagicMock())
 
         mock_settings = _make_mock_settings()
         gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
@@ -230,9 +234,9 @@ class TestSamLambdaEndpointGw0:
         with pytest.raises(SamStartupError):
             next(gen)
 
-        write_spy.assert_called_once()
-        args, _ = write_spy.call_args
-        assert args[0] == "error"
+        error_spy.assert_called_once()
+        args, _ = error_spy.call_args
+        assert args[0] == StateKeys.SAM_LAMBDA_ENDPOINT
         assert "sam_lambda_endpoint container failed to start" in str(args[1])
 
 
@@ -244,7 +248,7 @@ class TestSamLambdaEndpointGw0:
 class TestSamLambdaEndpointGw1Plus:
     def test_waits_and_yields_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: calls wait_for_state_key, yields endpoint, no Docker calls."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.WORKER)
 
         wait_spy = MagicMock(return_value="http://127.0.0.1:3001")
         monkeypatch.setattr(sl, "wait_for_state_key", wait_spy)
@@ -257,12 +261,12 @@ class TestSamLambdaEndpointGw1Plus:
         result = next(gen)
 
         assert result == "http://127.0.0.1:3001"
-        wait_spy.assert_called_once_with("sam_lambda_endpoint", timeout=120)
+        wait_spy.assert_called_once_with(StateKeys.SAM_LAMBDA_ENDPOINT, timeout=120)
         run_spy.assert_not_called()
 
     def test_returns_after_yield(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: generator raises StopIteration after yielding (returns, no teardown)."""
-        monkeypatch.setattr(sl, "get_worker_id", lambda: "gw2")
+        monkeypatch.setattr(sl, "worker_role", lambda: Role.WORKER)
 
         monkeypatch.setattr(
             sl,

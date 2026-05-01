@@ -9,10 +9,13 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from samstack._constants import LOCALSTACK_INTERNAL_URL
 from samstack._xdist import (
-    get_worker_id,
-    is_controller,
+    Role,
+    StateKeys,
     wait_for_state_key,
+    worker_role,
+    write_error_for,
     write_state_file,
 )
 from samstack.mock.types import Call, CallList
@@ -129,32 +132,31 @@ def make_lambda_mock(
         if bucket is not None:
             spy_bucket = bucket
         else:
-            worker_id = get_worker_id()
-            if not is_controller(worker_id):
-                # gw1+ path (D-01, D-03): wait for gw0 to create shared spy bucket
-                shared_bucket_name = wait_for_state_key(
-                    f"mock_spy_bucket_{alias}", timeout=120
-                )
+            role = worker_role()
+            state_key = StateKeys.mock_spy_bucket(alias)
+            if role is Role.WORKER:
+                # Worker: wait for controller to create shared spy bucket.
+                shared_bucket_name = wait_for_state_key(state_key, timeout=120)
                 spy_bucket = S3Bucket(name=shared_bucket_name, client=s3_client)
             else:
-                # gw0 / master path (D-01): create spy bucket + write name to state
+                # Master / controller: create spy bucket + write name to state.
                 try:
                     spy_bucket = make_s3_bucket(f"mock-{alias}")
                 except Exception as exc:
-                    if worker_id == "gw0":
-                        write_state_file(
-                            "error",
+                    if role is Role.CONTROLLER:
+                        write_error_for(
+                            state_key,
                             f"mock spy bucket 'mock-{alias}' creation failed: {exc}",
                         )
                     raise
-                if worker_id == "gw0":
-                    write_state_file(f"mock_spy_bucket_{alias}", spy_bucket.name)
+                if role is Role.CONTROLLER:
+                    write_state_file(state_key, spy_bucket.name)
 
-        # D-05: Mutate sam_env_vars on ALL workers for in-memory consistency
+        # Mutate sam_env_vars on ALL workers for in-memory consistency
         sam_env_vars[function_name] = {
             "MOCK_SPY_BUCKET": spy_bucket.name,
             "MOCK_FUNCTION_NAME": alias,
-            "AWS_ENDPOINT_URL_S3": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_S3": LOCALSTACK_INTERNAL_URL,
         }
         mock = LambdaMock(name=alias, bucket=spy_bucket)
         created.append(mock)

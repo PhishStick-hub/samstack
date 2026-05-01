@@ -7,6 +7,7 @@ import pytest
 
 import samstack.fixtures.sam_build as sb
 from samstack._errors import SamBuildError
+from samstack._xdist import Role, StateKeys
 
 # Access raw fixture function (bypass pytest decorator)
 _sam_build_raw = getattr(sb.sam_build, "__wrapped__")
@@ -26,6 +27,8 @@ def _make_mock_settings() -> MagicMock:
 
 _mock_env_vars: dict[str, dict[str, str]] = {"Parameters": {"TEST_VAR": "value"}}
 
+_ERROR_KEY = StateKeys.error_for(StateKeys.BUILD_COMPLETE)
+
 
 # ---------------------------------------------------------------------------
 # TestSamBuildMaster
@@ -34,8 +37,8 @@ _mock_env_vars: dict[str, dict[str, str]] = {"Parameters": {"TEST_VAR": "value"}
 
 class TestSamBuildMaster:
     def test_runs_build_on_master(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Master path runs run_one_shot_container; does NOT call write_state_file or wait_for_state_key."""
-        monkeypatch.setattr(sb, "get_worker_id", lambda: "master")
+        """Master runs run_one_shot_container; never writes state or waits."""
+        monkeypatch.setattr(sb, "worker_role", lambda: Role.MASTER)
         monkeypatch.setattr(sb, "_is_ci", lambda: False)
 
         run_spy = MagicMock(return_value=("build logs", 0))
@@ -43,6 +46,7 @@ class TestSamBuildMaster:
 
         write_spy = MagicMock()
         monkeypatch.setattr(sb, "write_state_file", write_spy)
+        monkeypatch.setattr(sb, "write_error_for", MagicMock())
 
         wait_spy = MagicMock()
         monkeypatch.setattr(sb, "wait_for_state_key", wait_spy)
@@ -57,8 +61,8 @@ class TestSamBuildMaster:
     def test_raises_on_build_failure_master(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Master path raises SamBuildError on non-zero exit; does NOT write state file."""
-        monkeypatch.setattr(sb, "get_worker_id", lambda: "master")
+        """Master raises SamBuildError on non-zero exit; never writes state."""
+        monkeypatch.setattr(sb, "worker_role", lambda: Role.MASTER)
         monkeypatch.setattr(sb, "_is_ci", lambda: False)
 
         monkeypatch.setattr(
@@ -69,25 +73,26 @@ class TestSamBuildMaster:
 
         write_spy = MagicMock()
         monkeypatch.setattr(sb, "write_state_file", write_spy)
+        error_spy = MagicMock()
+        monkeypatch.setattr(sb, "write_error_for", error_spy)
 
         mock_settings = _make_mock_settings()
         with pytest.raises(SamBuildError):
             _sam_build_raw(mock_settings, _mock_env_vars)
 
         write_spy.assert_not_called()
+        error_spy.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# TestSamBuildGw0
+# TestSamBuildController (gw0)
 # ---------------------------------------------------------------------------
 
 
-class TestSamBuildGw0:
-    def test_runs_build_and_writes_flag_on_gw0(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """gw0 runs run_one_shot_container and writes build_complete=True after success."""
-        monkeypatch.setattr(sb, "get_worker_id", lambda: "gw0")
+class TestSamBuildController:
+    def test_runs_build_and_writes_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Controller runs build and writes build_complete=True after success."""
+        monkeypatch.setattr(sb, "worker_role", lambda: Role.CONTROLLER)
         monkeypatch.setattr(sb, "_is_ci", lambda: False)
 
         run_spy = MagicMock(return_value=("build logs", 0))
@@ -95,16 +100,17 @@ class TestSamBuildGw0:
 
         write_spy = MagicMock()
         monkeypatch.setattr(sb, "write_state_file", write_spy)
+        monkeypatch.setattr(sb, "write_error_for", MagicMock())
 
         mock_settings = _make_mock_settings()
         _sam_build_raw(mock_settings, _mock_env_vars)
 
         run_spy.assert_called_once()
-        write_spy.assert_called_once_with("build_complete", True)
+        write_spy.assert_called_once_with(StateKeys.BUILD_COMPLETE, True)
 
-    def test_writes_error_on_failure_gw0(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw0 writes error key on build failure and re-raises SamBuildError."""
-        monkeypatch.setattr(sb, "get_worker_id", lambda: "gw0")
+    def test_writes_error_on_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Controller writes per-key error on build failure and re-raises."""
+        monkeypatch.setattr(sb, "worker_role", lambda: Role.CONTROLLER)
         monkeypatch.setattr(sb, "_is_ci", lambda: False)
 
         monkeypatch.setattr(
@@ -115,28 +121,29 @@ class TestSamBuildGw0:
 
         write_spy = MagicMock()
         monkeypatch.setattr(sb, "write_state_file", write_spy)
+        error_spy = MagicMock()
+        monkeypatch.setattr(sb, "write_error_for", error_spy)
 
         mock_settings = _make_mock_settings()
         with pytest.raises(SamBuildError):
             _sam_build_raw(mock_settings, _mock_env_vars)
 
-        # Must write error key (not build_complete)
-        write_spy.assert_called_once()
-        args, _ = write_spy.call_args
-        assert args[0] == "error"
+        # Per-key error slot, not the legacy "error" slot
+        error_spy.assert_called_once()
+        args, _ = error_spy.call_args
+        assert args[0] == StateKeys.BUILD_COMPLETE
+        write_spy.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# TestSamBuildGw1
+# TestSamBuildWorker (gw1+)
 # ---------------------------------------------------------------------------
 
 
-class TestSamBuildGw1:
-    def test_waits_for_build_complete_on_gw1(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """gw1+ calls wait_for_state_key("build_complete", timeout=300) and returns without running Docker."""
-        monkeypatch.setattr(sb, "get_worker_id", lambda: "gw1")
+class TestSamBuildWorker:
+    def test_waits_for_build_complete(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Worker waits for build_complete and never runs Docker."""
+        monkeypatch.setattr(sb, "worker_role", lambda: Role.WORKER)
 
         run_spy = MagicMock()
         monkeypatch.setattr(sb, "run_one_shot_container", run_spy)
@@ -147,21 +154,23 @@ class TestSamBuildGw1:
         mock_settings = _make_mock_settings()
         _sam_build_raw(mock_settings, _mock_env_vars)
 
-        wait_spy.assert_called_once_with("build_complete", timeout=300)
+        wait_spy.assert_called_once_with(StateKeys.BUILD_COMPLETE, timeout=300)
         run_spy.assert_not_called()
 
-    def test_fails_on_error_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """gw1+ raises pytest.fail.Exception when error key detected in state."""
-        monkeypatch.setattr(sb, "get_worker_id", lambda: "gw1")
+    def test_fails_on_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Worker re-raises pytest.fail when error recorded in state."""
+        monkeypatch.setattr(sb, "worker_role", lambda: Role.WORKER)
 
         monkeypatch.setattr(
             sb,
             "wait_for_state_key",
-            MagicMock(
-                side_effect=pytest.fail.Exception("gw0 infrastructure startup failed")
-            ),
+            MagicMock(side_effect=pytest.fail.Exception("controller startup failed")),
         )
 
         mock_settings = _make_mock_settings()
         with pytest.raises(pytest.fail.Exception):
             _sam_build_raw(mock_settings, _mock_env_vars)
+
+
+# Suppress unused-name warning when tests don't reference _ERROR_KEY directly.
+_ = _ERROR_KEY

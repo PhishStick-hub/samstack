@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import samstack.fixtures.localstack as loc
+from samstack._xdist import Role, StateKeys
 
 # Access raw fixture functions (bypass pytest decorator)
 _localstack_endpoint_raw: Callable[[object], str] = getattr(
@@ -27,7 +28,7 @@ class TestLocalStackEndpointMaster:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """master path: localstack_endpoint delegates to container.get_url()."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "master")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.MASTER)
 
         write_spy = MagicMock()
         monkeypatch.setattr(loc, "write_state_file", write_spy)
@@ -49,7 +50,7 @@ class TestLocalStackEndpointGw0:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw0 path: localstack_endpoint returns container.get_url()."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
 
         mock_container = MagicMock()
         mock_container.get_url.return_value = "http://127.0.0.1:4566"
@@ -66,7 +67,7 @@ class TestLocalStackEndpointGw0:
         The write_state_file("localstack_endpoint") call is made in localstack_container,
         not in localstack_endpoint. localstack_endpoint simply calls get_url().
         """
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
 
         write_spy = MagicMock()
         monkeypatch.setattr(loc, "write_state_file", write_spy)
@@ -90,7 +91,7 @@ class TestLocalStackEndpointGw1:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw1+ path: localstack_endpoint returns proxy.get_url()."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.WORKER)
 
         proxy = loc._LocalStackContainerProxy("http://127.0.0.1:4566")
         result = _localstack_endpoint_raw(proxy)
@@ -146,7 +147,7 @@ class TestLocalStackContainerMaster:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """master path: creates LocalStack container, starts it, does NOT write state."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "master")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.MASTER)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
 
@@ -162,7 +163,7 @@ class TestLocalStackContainerMaster:
 
     def test_stops_on_teardown_master(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """master path: container.stop() is called on teardown."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "master")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.MASTER)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
 
@@ -185,7 +186,7 @@ class TestLocalStackContainerGw0:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw0 path: creates container, writes localstack_endpoint to state."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
 
@@ -197,11 +198,13 @@ class TestLocalStackContainerGw0:
         next(gen)
 
         mock_container.start.assert_called_once()
-        write_spy.assert_called_with("localstack_endpoint", "http://127.0.0.1:4566")
+        write_spy.assert_called_with(
+            StateKeys.LOCALSTACK_ENDPOINT, "http://127.0.0.1:4566"
+        )
 
     def test_writes_error_on_failure_gw0(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw0 path: writes error key to state on Docker failure, re-raises."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
 
         mock_inner = MagicMock()
         mock_container = MagicMock()
@@ -214,21 +217,24 @@ class TestLocalStackContainerGw0:
         monkeypatch.setattr(loc, "_connect_container_with_alias", MagicMock())
         monkeypatch.setattr(loc, "stream_logs_to_file", MagicMock())
 
-        write_spy = MagicMock()
-        monkeypatch.setattr(loc, "write_state_file", write_spy)
+        error_spy = MagicMock()
+        monkeypatch.setattr(loc, "write_error_for", error_spy)
+        monkeypatch.setattr(loc, "write_state_file", MagicMock())
 
         mock_settings = _make_mock_settings()
         gen = _localstack_container_gen(mock_settings, "samstack-net")
         with pytest.raises(Exception, match="docker fail"):
             next(gen)
 
-        write_spy.assert_called_with("error", "LocalStack container failed to start")
+        error_spy.assert_called_with(
+            StateKeys.LOCALSTACK_ENDPOINT, "LocalStack container failed to start"
+        )
 
     def test_stops_and_disconnects_on_teardown_gw0(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw0 path: container.stop() and disconnect called on teardown."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw0")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
 
         mock_container, _ = _setup_docker_mocks(monkeypatch)
         disconnect_spy = MagicMock()
@@ -255,7 +261,7 @@ class TestLocalStackContainerGw1:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """gw1+ path: yields _LocalStackContainerProxy, no Docker API calls."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.WORKER)
         monkeypatch.setattr(
             loc,
             "wait_for_state_key",
@@ -276,7 +282,7 @@ class TestLocalStackContainerGw1:
 
     def test_no_teardown_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: no container.stop() or disconnect on teardown."""
-        monkeypatch.setattr(loc, "get_worker_id", lambda: "gw1")
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.WORKER)
         monkeypatch.setattr(
             loc,
             "wait_for_state_key",
