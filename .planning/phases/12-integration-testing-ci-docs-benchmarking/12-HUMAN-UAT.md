@@ -3,8 +3,33 @@ status: partial
 phase: 12-integration-testing-ci-docs-benchmarking
 source: [12-VERIFICATION.md]
 started: 2026-05-01T12:00:00Z
-updated: 2026-05-01T12:00:00Z
+updated: 2026-05-01T14:00:00Z
 ---
+
+## Quick Start
+
+Run these commands in order. Requires Docker daemon running. All commands run from project root.
+
+```bash
+# Prerequisites: Docker running, uv sync complete
+uv sync
+
+# 1. Basic xdist integration tests (~2-3 min)
+uv run pytest tests/xdist/test_basic.py -v -n 2 --timeout=300
+
+# 2. Resource parallelism tests (~3-5 min, uses 4 workers)
+uv run pytest tests/xdist/test_resource_parallelism.py -v -n 4 --timeout=300
+
+# 3. Crash recovery test (~2 min, Linux only — skips on macOS)
+uv run pytest tests/xdist/test_crash/test_crash.py -v --timeout=300
+
+# 4. Performance benchmark (~15 min — runs 4 sequential passes)
+uv run python scripts/benchmark.py
+
+# 5. Cleanup check (after crash test)
+docker ps -a --filter "label=org.testcontainers.session-id"
+docker network ls --filter "name=samstack"
+```
 
 ## Current Test
 
