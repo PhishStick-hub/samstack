@@ -668,6 +668,73 @@ Session-scoped factory. Creates a spy bucket (or reuses one), injects `MOCK_SPY_
 
 ---
 
+## Parallel testing with pytest-xdist
+
+Run samstack tests in parallel across multiple workers using [pytest-xdist](https://github.com/pytest-dev/pytest-xdist). All workers share a single set of Docker infrastructure (LocalStack + SAM containers) — infrastructure starts once on worker 0 and is transparently shared with all other workers.
+
+### Installation
+
+```bash
+uv add --group dev pytest-xdist
+```
+
+No conftest configuration needed — samstack auto-detects xdist workers and coordinates infrastructure automatically.
+
+### Usage
+
+```bash
+# Run tests with 2 parallel workers
+uv run pytest tests/ -n 2 --timeout=300
+
+# Run with 4 workers
+uv run pytest tests/ -n 4 --timeout=300
+
+# Auto-detect optimal worker count (CPU-based)
+uv run pytest tests/ -n auto --timeout=300
+```
+
+### How it works
+
+Worker 0 (gw0) manages all Docker lifecycle — it creates the Docker network, starts LocalStack, runs `sam build`, and launches SAM containers. Endpoint URLs and build status are written to a shared JSON state file. Workers 1+ read the state file and yield the same endpoints without any Docker API calls. At session teardown, only gw0 stops the containers and removes the network.
+
+Per-worker AWS resource isolation is automatic — all resource fixtures (S3 buckets, DynamoDB tables, SQS queues, SNS topics) use UUID-based naming, so workers never collide even though they share one LocalStack instance.
+
+### Supported `--dist` modes
+
+| Mode | Supported | Notes |
+|------|-----------|-------|
+| `--dist=load` | ✅ | Default. Sends pending tests to workers as they become available. |
+| `--dist=worksteal` | ✅ | Workers steal tests from busy workers. Good for uneven test durations. |
+| `--dist=each` | ❌ | Each worker would duplicate Docker infrastructure — defeats the purpose of shared infra. |
+| `--dist=no` | ❌ | All tests run on the controller — no parallelism benefit. |
+
+### CI setup
+
+Example GitHub Actions step (adds ∼1-2 min to integration test duration):
+
+```yaml
+- name: Run xdist integration tests
+  run: uv run pytest tests/xdist/ -v -n 2 --timeout=300 --ignore=tests/xdist/test_crash.py
+```
+
+The crash recovery test runs separately (not under xdist — it launches its own subprocess):
+
+```yaml
+- name: Run xdist crash test
+  continue-on-error: true
+  run: uv run pytest tests/xdist/test_crash/ -v --timeout=300
+```
+
+### Known limitations
+
+- **No `--dist=each` or `--dist=no`** — these modes duplicate Docker infrastructure per worker, defeating the purpose of shared infrastructure.
+- **No per-worker LocalStack** — all workers share one LocalStack instance. Per-worker AWS resource isolation is achieved through UUID-based naming, not separate LocalStack containers.
+- **File-level parallelism only** — pytest-xdist distributes test files across workers. Tests within the same file always run on the same worker.
+- **Crash test may be unreliable on macOS** — the crash recovery test uses subprocess management that depends on Docker's Ryuk reaper, which has known limitations on macOS Docker Desktop.
+- **No explicit worker-to-resource grouping** — if you need specific tests to run on specific workers, use `@pytest.mark.xdist_group` in your own conftest.
+
+---
+
 ## SAM image versions
 
 Pick the build image that matches your Lambda runtime:
