@@ -10,7 +10,7 @@ No leftover Docker containers or networks after a crashed pytest session.
 
 ## Current State
 
-Building v2.3.0 — "pytest-xdist Support" (started 2026-04-29). Full details in MILESTONES.md.
+v2.3.0 — "pytest-xdist Support" — complete. All 5 phases (8-12), 9 plans shipped. Full details in MILESTONES.md.
 
 ## Current Milestone: v2.3.0 pytest-xdist Support
 
@@ -51,17 +51,16 @@ Building v2.3.0 — "pytest-xdist Support" (started 2026-04-29). Full details in
 - ✓ Shared LocalStack container serving all xdist workers via _LocalStackContainerProxy — v2.3.0 Phase 9
 - ✓ sam_build runs once on gw0 with build_complete state flag for gw1+ — v2.3.0 Phase 9
 - ✓ Resource fixture per-worker isolation preserved via UUID4 naming — v2.3.0 Phase 9
+- ✓ SAM API container shared across xdist workers (gw0 creates, gw1+ reads URL) — v2.3.0 Phase 10
+- ✓ SAM Lambda container shared across xdist workers — v2.3.0 Phase 10
+- ✓ Warm container coordination across xdist workers — v2.3.0 Phase 11
+- ✓ samstack.mock spy buckets compatible with xdist — v2.3.0 Phase 11
+- ✓ End-to-end xdist integration test suite — v2.3.0 Phase 12
+- ✓ Crash recovery test for xdist workers — v2.3.0 Phase 12
+- ✓ xdist usage documentation and README updates — v2.3.0 Phase 12
+- ✓ Performance benchmark (plain vs xdist suite times) — v2.3.0 Phase 12
 
 ### Active
-
-- [ ] SAM API container shared across xdist workers (gw0 creates, gw1+ reads URL)
-- [ ] SAM Lambda container shared across xdist workers
-- [ ] Warm container coordination across xdist workers
-- [ ] samstack.mock spy buckets compatible with xdist
-- [ ] End-to-end xdist integration test suite
-- [ ] Crash recovery test for xdist workers
-- [ ] xdist usage documentation and README updates
-- [ ] Performance benchmark (plain vs xdist suite times)
 
 ### Out of Scope
 
@@ -72,11 +71,13 @@ Building v2.3.0 — "pytest-xdist Support" (started 2026-04-29). Full details in
 
 ## Context
 
-Shipped v2.0.0 with 3 phases, 5 plans (Ryuk crash-safe infrastructure). Shipped v2.2.0 with 4 phases, 6 plans (per-function warm containers). Total: 11 plans across 7 phases, 23 commits, +1,582 lines.
+Shipped v2.0.0 with 3 phases, 5 plans (Ryuk crash-safe infrastructure). Shipped v2.2.0 with 4 phases, 6 plans (per-function warm containers). Shipped v2.3.0 with 5 phases, 9 plans (pytest-xdist support). Total: 20 plans across 12 phases.
 
 v2.2.0 features: per-function warm container configuration via `warm_functions` in settings/fixtures, selective pre-warming for start-lambda (boto3 invoke) and start-api (HTTP GET), init-marker UUID pattern for deterministic warm container verification, warm sub-container Ryuk cascade crash test, and complete README documentation.
 
-Key files: `src/samstack/settings.py` (warm_functions field), `src/samstack/fixtures/sam_build.py` (warm_functions fixture), `src/samstack/fixtures/sam_lambda.py` (_pre_warm_functions), `src/samstack/fixtures/sam_api.py` (warm_api_routes fixture + _pre_warm_api_routes), `tests/fixtures/warm_check/` (init-marker test fixture), `tests/warm/` (warm verification tests), `tests/integration/test_warm_crash.py` (warm crash test).
+v2.3.0 features: pytest-xdist worker detection and gw0-only Docker infrastructure management, shared LocalStack/SAM containers across all workers via JSON state files with FileLock coordination, per-worker AWS resource isolation via UUID4 naming, samstack.mock spy bucket sharing, fail-fast with skip cascade on gw0 failure, xdist integration test suite with resource parallelism and crash recovery tests, performance benchmark, and user documentation.
+
+Key files: `src/samstack/_xdist.py` (worker coordination, state file, infra lock), `src/samstack/fixtures/localstack.py` (gw0-only LocalStack, gw1+ proxy), `src/samstack/fixtures/sam_build.py` (gw0-only build), `src/samstack/fixtures/sam_api.py` (gw0-only API start, gw1+ URL read), `src/samstack/fixtures/sam_lambda.py` (gw0-only lambda start), `src/samstack/fixtures/resources.py` (UUID4 per-worker naming), `tests/xdist/` (integration + crash test suites), `scripts/benchmark.py` (performance measurement).
 
 ## Constraints
 
@@ -123,4 +124,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-05-01 after Phase 09 (docker-infra-xdist-awareness)*
+*Last updated: 2026-05-01 after Phase 12 (integration-testing-ci-docs-benchmarking) — v2.3.0 complete*
