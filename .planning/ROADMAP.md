@@ -114,7 +114,10 @@ Plans:
   1. A downstream project running `pytest -n 2` with the multi_lambda mock pattern sees gw1+ worker tests reading spy events written by Lambda invocations originating from any worker
   2. Mock env vars (`MOCK_SPY_BUCKET`, `MOCK_FUNCTION_NAME`) are correctly injected into SAM containers so that Lambda code running inside SAM receives the right mock configuration regardless of which worker triggered the build
   3. Multiple workers simultaneously writing spy events to the shared bucket do not experience key collisions or data corruption
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 11-01-PLAN.md — Add xdist-aware gw0/gw1+ split to `make_lambda_mock` fixture + unit tests
 
 #### Phase 12: Integration Testing, CI, Docs, & Benchmarking
 **Goal**: End-to-end validation of xdist support across all fixture types, crash recovery verification, documented usage, and measured performance
@@ -137,5 +140,5 @@ Execution order: 8 → 9 → 10 → 11 → 12
 | 8. Core Xdist Coordination | 2/2 | Complete | 2026-04-30 |
 | 9. Docker Infra Xdist-Awareness | 2/2 | Complete | 2026-05-01 |
 | 10. SAM API + Lambda Xdist-Awareness | 2/2 | Complete   | 2026-04-30 |
-| 11. Mock Coordination | 0/TBD | Not started | - |
+| 11. Mock Coordination | 0/1 | Ready to execute | - |
 | 12. Integration Testing, CI, Docs | 0/TBD | Not started | - |
