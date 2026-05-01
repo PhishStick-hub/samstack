@@ -40,7 +40,9 @@ def _get_make(
 class TestMakeLambdaMockXdist:
     """gw0 and gw1+ behavior for make_lambda_mock._make inner function."""
 
-    def test_gw0_creates_bucket_and_writes_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_gw0_creates_bucket_and_writes_state(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """gw0 worker: make_s3_bucket called, state key written, LambdaMock returned."""
         # Setup: mock make_s3_bucket returns a known bucket
         mock_s3_client = MagicMock()
@@ -77,7 +79,9 @@ class TestMakeLambdaMockXdist:
         assert result.name == "mock-a"
         assert result.bucket is mock_bucket
 
-    def test_gw1_reads_state_and_constructs_s3bucket(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_gw1_reads_state_and_constructs_s3bucket(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """gw1+ worker: wait_for_state_key called, S3Bucket constructed from name,
         make_s3_bucket NOT called."""
         # Setup
@@ -134,8 +138,7 @@ class TestMakeLambdaMockXdist:
         assert sam_env_vars["TestFunc"]["MOCK_SPY_BUCKET"] == "mock-mock-a-abc12345"
         assert sam_env_vars["TestFunc"]["MOCK_FUNCTION_NAME"] == "mock-a"
         assert (
-            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"]
-            == "http://localstack:4566"
+            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
         )
 
     def test_env_vars_set_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,18 +165,23 @@ class TestMakeLambdaMockXdist:
         assert sam_env_vars["TestFunc"]["MOCK_SPY_BUCKET"] == shared_bucket_name
         assert sam_env_vars["TestFunc"]["MOCK_FUNCTION_NAME"] == "mock-a"
         assert (
-            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"]
-            == "http://localstack:4566"
+            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
         )
 
-    def test_gw1_fails_on_error_state_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_gw1_fails_on_error_state_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """gw1+ detects error key in state via wait_for_state_key, raises pytest.fail."""
         mock_s3_client = MagicMock()
         make_s3_bucket = MagicMock()
         sam_env_vars: dict[str, dict[str, str]] = {}
 
         # wait_for_state_key raises pytest.fail when error key exists
-        mock_wait = MagicMock(side_effect=pytest.fail.Exception("gw0 infrastructure startup failed: mock spy bucket creation failed"))
+        mock_wait = MagicMock(
+            side_effect=pytest.fail.Exception(
+                "gw0 infrastructure startup failed: mock spy bucket creation failed"
+            )
+        )
         monkeypatch.setattr("samstack.mock.fixture.get_worker_id", lambda: "gw1")
         monkeypatch.setattr("samstack.mock.fixture.is_controller", lambda w: False)
         monkeypatch.setattr("samstack.mock.fixture.wait_for_state_key", mock_wait)
@@ -185,7 +193,9 @@ class TestMakeLambdaMockXdist:
         with pytest.raises(pytest.fail.Exception):
             _make("TestFunc", alias="mock-a")
 
-    def test_pre_existing_bucket_bypasses_xdist(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_pre_existing_bucket_bypasses_xdist(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When bucket= kwarg is passed, no xdist logic executes — bucket used directly."""
         mock_s3_client = MagicMock()
         pre_existing = S3Bucket(name="my-bucket", client=mock_s3_client)
@@ -213,7 +223,9 @@ class TestMakeLambdaMockXdist:
         assert result.bucket is pre_existing
         assert sam_env_vars["Func"]["MOCK_SPY_BUCKET"] == "my-bucket"
 
-    def test_master_path_preserves_original_behavior(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_master_path_preserves_original_behavior(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Master worker_id (non-xdist): make_s3_bucket called, no state read/write."""
         mock_s3_client = MagicMock()
         mock_bucket = S3Bucket(name="mock-mock-a-abc12345", client=mock_s3_client)
@@ -245,7 +257,9 @@ class TestMakeLambdaMockXdist:
         assert isinstance(result, LambdaMock)
         assert result.name == "mock-a"
 
-    def test_env_vars_contain_aws_endpoint_url_s3(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_env_vars_contain_aws_endpoint_url_s3(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """sam_env_vars includes AWS_ENDPOINT_URL_S3=http://localstack:4566."""
         mock_s3_client = MagicMock()
         mock_bucket = S3Bucket(name="mock-b-xyz", client=mock_s3_client)
@@ -261,4 +275,6 @@ class TestMakeLambdaMockXdist:
         _make = _get_make(make_s3_bucket, mock_s3_client, sam_env_vars)
         _make("TestFunc", alias="mock-b")
 
-        assert sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
+        assert (
+            sam_env_vars["TestFunc"]["AWS_ENDPOINT_URL_S3"] == "http://localstack:4566"
+        )
