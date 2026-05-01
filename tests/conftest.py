@@ -17,18 +17,14 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "hello_world"
 INTEGRATION_BUCKET = "samstack-integration-test"
 
 
-# multi_lambda/ pins ``samstack_settings`` to a different fixture project.
-# Session-scoped SAM fixtures (sam_build, sam_api, sam_lambda_endpoint) cache
-# the first resolution across the whole run, so mixing both suites in one
-# session makes hello_world tests hit the multi_lambda template (or vice
-# versa). Ignore multi_lambda unless it is explicitly targeted on the CLI.
+# multi_lambda/, warm/, and xdist/ each pin samstack_settings to a different
+# fixture project. Session-scoped SAM fixtures (sam_build, sam_api,
+# sam_lambda_endpoint) cache the first resolution across the whole run, so
+# mixing suites in one session makes tests hit the wrong template. Ignore
+# them unless explicitly targeted on the CLI.
 def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
     path_str = str(collection_path)
-    # multi_lambda/ and warm/ each pin samstack_settings to a different fixture
-    # project. Session-scoped SAM fixtures cache the first resolution, so mixing
-    # suites in one session makes tests hit the wrong template. Ignore them
-    # unless explicitly targeted on the CLI.
-    for suite in ("multi_lambda", "warm"):
+    for suite in ("multi_lambda", "warm", "xdist"):
         if suite in path_str:
             args = config.invocation_params.args
             explicit = any(suite in str(arg) for arg in args)
