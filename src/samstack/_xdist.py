@@ -38,7 +38,13 @@ def is_controller(worker_id: str | None = None) -> bool:
 def get_session_uuid() -> str:
     global _session_uuid
     if _session_uuid is None:
-        _session_uuid = uuid.uuid4().hex[:8]
+        # Use pytest-xdist's shared testrun UID when running under xdist so
+        # all workers share the same state directory for cross-worker coordination.
+        xdist_uid = os.environ.get("PYTEST_XDIST_TESTRUNUID")
+        if xdist_uid:
+            _session_uuid = xdist_uid[:8]
+        else:
+            _session_uuid = uuid.uuid4().hex[:8]
     return _session_uuid
 
 

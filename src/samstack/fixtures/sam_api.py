@@ -97,15 +97,23 @@ def sam_api(
     samstack_settings: SamStackSettings,
     sam_build: None,
     docker_network: str,
+    sam_lambda_endpoint: str,
     sam_api_extra_args: list[str],
     warm_functions: list[str],
     warm_api_routes: dict[str, str],
 ) -> Iterator[str]:
-    """Start `sam local start-api` in Docker. Yields base URL http://127.0.0.1:{api_port}.
+    """Start `sam local start-lambda` and `start-api` in Docker.
 
-    Under xdist: gw0 starts the container and writes the endpoint to shared state;
-    gw1+ workers poll for the endpoint and yield it without any Docker calls.
-    Logs written to {log_dir}/start-api.log.
+    Yields base URL http://127.0.0.1:{api_port}.
+
+    Depends on ``sam_lambda_endpoint`` so the Lambda runtime is always started
+    alongside the API gateway. This ensures gw0 writes both endpoints to shared
+    state even when its test allocation only covers API tests — gw1+ workers
+    that need ``lambda_client`` can still resolve it.
+
+    Under xdist: gw0 starts the containers and writes endpoints to shared state;
+    gw1+ workers poll for the endpoints and yield them without any Docker calls.
+    Logs written to {log_dir}/start-api.log and {log_dir}/start-lambda.log.
     """
     worker_id = get_worker_id()
 

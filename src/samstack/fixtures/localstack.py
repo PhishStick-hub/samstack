@@ -19,6 +19,7 @@ from samstack._xdist import (
     acquire_infra_lock,
     get_worker_id,
     is_controller,
+    read_state_file,
     release_infra_lock,
     wait_for_state_key,
     write_state_file,
@@ -170,6 +171,44 @@ class _LocalStackContainerProxy:
         """gw1+ does not own the container — no-op."""
 
 
+def _wait_for_workers_done(timeout: float = 300.0) -> None:
+    """Wait for all gw1+ workers to signal done before gw0 tears down.
+
+    Under xdist, gw0 owns the shared Docker infrastructure. Teardown
+    must wait until every gw1+ worker has finished using it, otherwise
+    gw1+ tests will fail with ConnectionRefusedError.
+
+    Workers signal completion by writing ``{worker_id}_done`` keys to
+    shared state during their own fixture teardown.
+    """
+    import os as _os
+    import time as _time
+
+    worker_count_str = _os.environ.get("PYTEST_XDIST_WORKER_COUNT")
+    if not worker_count_str:
+        return  # Not running under xdist
+    worker_count = int(worker_count_str)
+    if worker_count <= 1:
+        return  # Single worker, no need to wait
+
+    expected = {f"gw{i}_done" for i in range(1, worker_count)}
+    deadline = _time.monotonic() + timeout
+    while expected and _time.monotonic() < deadline:
+        state = read_state_file()
+        found = expected & set(state)
+        expected -= found
+        if not expected:
+            return
+        _time.sleep(0.5)
+
+    if expected:
+        import pytest
+
+        pytest.fail(
+            f"Timed out after {timeout}s waiting for workers to complete: {expected}"
+        )
+
+
 @pytest.fixture(scope="session")
 def localstack_container(
     samstack_settings: SamStackSettings,
@@ -180,6 +219,11 @@ def localstack_container(
     Under xdist: gw0 starts LocalStack and writes its endpoint to shared
     state; gw1+ waits for the endpoint and yields a lightweight proxy
     without any Docker API calls.
+
+    Teardown coordination: gw1+ writes a ``{worker_id}_done`` key to shared
+    state after yielding the proxy (i.e. after its session ends).  gw0 polls
+    for all gw1+ ``_done`` keys before stopping the container, preventing
+    premature teardown while other workers are still running.
     """
     worker_id = get_worker_id()
 
@@ -187,6 +231,8 @@ def localstack_container(
     if not is_controller(worker_id):
         endpoint = wait_for_state_key("localstack_endpoint", timeout=120)
         yield _LocalStackContainerProxy(endpoint)
+        # Signal completion so gw0 can safely tear down.
+        write_state_file(f"{worker_id}_done", True)
         return
 
     # === gw0 / master path: create and start LocalStack ===
@@ -235,6 +281,10 @@ def localstack_container(
     try:
         yield container
     finally:
+        # Under xdist, wait for all gw1+ workers to signal done before
+        # tearing down the shared infrastructure.
+        if worker_id == "gw0":
+            _wait_for_workers_done()
         try:
             _disconnect_container_from_network(client, docker_network, container)
         except Exception as exc:

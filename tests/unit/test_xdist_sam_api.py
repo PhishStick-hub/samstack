@@ -33,7 +33,9 @@ def _make_mock_settings() -> MagicMock:
 
 
 @contextmanager
-def _mock_run_sam_service_success(url: str = "http://127.0.0.1:3000") -> Generator[str, None, None]:
+def _mock_run_sam_service_success(
+    url: str = "http://127.0.0.1:3000",
+) -> Generator[str, None, None]:
     """Mock _run_sam_service that successfully yields a URL."""
     yield url
 
@@ -58,7 +60,8 @@ class TestSamApiMaster:
         write_state_file NOT called, endpoint yielded."""
         monkeypatch.setattr(sa, "get_worker_id", lambda: "master")
         monkeypatch.setattr(
-            sa, "_run_sam_service",
+            sa,
+            "_run_sam_service",
             lambda *a, **kw: _mock_run_sam_service_success("http://127.0.0.1:3000"),
         )
 
@@ -69,7 +72,7 @@ class TestSamApiMaster:
         monkeypatch.setattr(sa, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
         result = next(gen)
 
         assert result == "http://127.0.0.1:3000"
@@ -84,7 +87,8 @@ class TestSamApiMaster:
         """Master path on error: raises SamStartupError, write_state_file NOT called."""
         monkeypatch.setattr(sa, "get_worker_id", lambda: "master")
         monkeypatch.setattr(
-            sa, "_run_sam_service",
+            sa,
+            "_run_sam_service",
             lambda *a, **kw: _mock_run_sam_service_error(),
         )
 
@@ -92,7 +96,7 @@ class TestSamApiMaster:
         monkeypatch.setattr(sa, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
 
         with pytest.raises(SamStartupError):
             next(gen)
@@ -112,7 +116,8 @@ class TestSamApiGw0:
         """gw0 path: runs container, pre-warms, writes sam_api_endpoint to state."""
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(
-            sa, "_run_sam_service",
+            sa,
+            "_run_sam_service",
             lambda *a, **kw: _mock_run_sam_service_success("http://127.0.0.1:3000"),
         )
 
@@ -123,14 +128,12 @@ class TestSamApiGw0:
         monkeypatch.setattr(sa, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
         result = next(gen)
 
         assert result == "http://127.0.0.1:3000"
         pre_warm_spy.assert_called_once()
-        write_spy.assert_called_once_with(
-            "sam_api_endpoint", "http://127.0.0.1:3000"
-        )
+        write_spy.assert_called_once_with("sam_api_endpoint", "http://127.0.0.1:3000")
 
         gen.close()
 
@@ -140,15 +143,18 @@ class TestSamApiGw0:
         """gw0 pre-warm error: writes 'error' key to state, re-raises SamStartupError."""
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(
-            sa, "_run_sam_service",
+            sa,
+            "_run_sam_service",
             lambda *a, **kw: _mock_run_sam_service_success("http://127.0.0.1:3000"),
         )
 
         monkeypatch.setattr(
-            sa, "_pre_warm_api_routes",
+            sa,
+            "_pre_warm_api_routes",
             MagicMock(
                 side_effect=SamStartupError(
-                    port=0, log_tail="Pre-warm HTTP request failed for function 'TestFunc' (/hello): test error"
+                    port=0,
+                    log_tail="Pre-warm HTTP request failed for function 'TestFunc' (/hello): test error",
                 )
             ),
         )
@@ -157,7 +163,7 @@ class TestSamApiGw0:
         monkeypatch.setattr(sa, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
 
         with pytest.raises(SamStartupError):
             next(gen)
@@ -174,7 +180,8 @@ class TestSamApiGw0:
         re-raises SamStartupError."""
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw0")
         monkeypatch.setattr(
-            sa, "_run_sam_service",
+            sa,
+            "_run_sam_service",
             lambda *a, **kw: _mock_run_sam_service_error(),
         )
 
@@ -182,7 +189,7 @@ class TestSamApiGw0:
         monkeypatch.setattr(sa, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
 
         with pytest.raises(SamStartupError):
             next(gen)
@@ -212,7 +219,7 @@ class TestSamApiGw1Plus:
         monkeypatch.setattr(sa, "_run_sam_service", run_sam_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
         result = next(gen)
 
         assert result == "http://127.0.0.1:3000"
@@ -221,19 +228,18 @@ class TestSamApiGw1Plus:
 
         gen.close()
 
-    def test_returns_after_yield_on_gw1(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_after_yield_on_gw1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: yields endpoint then returns immediately (StopIteration)."""
         monkeypatch.setattr(sa, "get_worker_id", lambda: "gw1")
 
         monkeypatch.setattr(
-            sa, "wait_for_state_key",
+            sa,
+            "wait_for_state_key",
             MagicMock(return_value="http://127.0.0.1:3000"),
         )
 
         mock_settings = _make_mock_settings()
-        gen = _sam_api_gen(mock_settings, None, "docker_net", [], [], {})
+        gen = _sam_api_gen(mock_settings, None, "docker_net", "http://127.0.0.1:3001", [], [], {})
 
         result = next(gen)
         assert result == "http://127.0.0.1:3000"
