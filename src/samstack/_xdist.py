@@ -4,7 +4,7 @@ import contextlib
 import json
 import os
 import tempfile
-import threading
+from filelock import FileLock, Timeout
 import time
 import uuid
 from pathlib import Path
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     pass
 
 _session_uuid: str | None = None
-_state_lock = threading.Lock()
+_STATE_FILE_LOCK: FileLock | None = None
 _lock: Any = None
 _lock_held = False
 
@@ -54,6 +54,14 @@ def get_state_dir() -> Path:
     return d
 
 
+def _get_state_lock() -> FileLock:
+    global _STATE_FILE_LOCK
+    if _STATE_FILE_LOCK is None:
+        lock_path = get_state_dir() / "state.lock"
+        _STATE_FILE_LOCK = FileLock(str(lock_path), timeout=10.0)
+    return _STATE_FILE_LOCK
+
+
 def read_state_file() -> dict[str, Any]:
     state_path = get_state_dir() / "state.json"
     if not state_path.exists():
@@ -62,11 +70,22 @@ def read_state_file() -> dict[str, Any]:
 
 
 def write_state_file(key: str, value: Any) -> None:
-    with _state_lock:
+    with _get_state_lock():
         state = read_state_file()
         state[key] = value
         state_path = get_state_dir() / "state.json"
-        state_path.write_text(json.dumps(state))
+        # Atomic write: temp file + rename
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(state_path.parent), suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(state, f)
+            os.replace(tmp_path, str(state_path))
+        except Exception:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(tmp_path)
+            raise
 
 
 def wait_for_state_key(
@@ -88,7 +107,6 @@ def wait_for_state_key(
 
 
 def acquire_infra_lock() -> bool:
-    from filelock import FileLock, Timeout
 
     global _lock, _lock_held
     if _lock_held:
