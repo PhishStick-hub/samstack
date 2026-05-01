@@ -2,8 +2,8 @@
 """Benchmark samstack test suite with and without pytest-xdist.
 
 Measures wall-clock execution time of the integration test suite
-under sequential (baseline), -n 2, -n 4, and -n 8 configurations.
--n 10+ overwhelms the Docker daemon with concurrent container creation.
+under sequential (baseline), -n 2, and -n 4 configurations.
+-n 6+ causes SAM local Lambda Flask connection resets at high concurrency.
 Outputs a table with speedup factors.
 
 Usage:
@@ -32,12 +32,14 @@ TEST_TARGETS = [
     "tests/integration/test_sqs_fixtures.py",
 ]
 
-# Configurations to benchmark (-n 10 breaks: Docker daemon overload at 10 workers)
+# Configurations to benchmark.
+# -n 6+ can fail: SAM local Lambda runtime (Flask) drops concurrent invoke
+# connections beyond ~4-5 workers. The 44-test suite also hits diminishing
+# returns past 4 workers due to scheduling overhead per worker.
 CONFIGS = [
     ("baseline", []),
     ("-n 2", ["-n", "2"]),
     ("-n 4", ["-n", "4"]),
-    ("-n 8", ["-n", "8"]),
 ]
 
 TIMEOUT = 300
@@ -95,7 +97,7 @@ def main() -> None:
     print()
     print(f"{'Configuration':<14} {'Time (s)':>10} {'Speedup':>10}")
     print("-" * 36)
-    for name in ["baseline", "-n 2", "-n 4", "-n 8"]:
+    for name in ["baseline", "-n 2", "-n 4"]:
         elapsed, code = results.get(name, (0.0, -1))
         speedup = baseline_s / elapsed if elapsed > 0 else 0.0
         exit_label = "" if code == 0 else f" (exit {code})"
