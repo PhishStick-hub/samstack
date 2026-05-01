@@ -33,7 +33,6 @@ CONFIGS = [
     ("baseline", []),
     ("-n 2", ["-n", "2"]),
     ("-n 4", ["-n", "4"]),
-    ("-n auto", ["-n", "auto"]),
 ]
 
 TIMEOUT = 300
@@ -91,7 +90,7 @@ def main() -> None:
     print()
     print(f"{'Configuration':<14} {'Time (s)':>10} {'Speedup':>10}")
     print("-" * 36)
-    for name in ["baseline", "-n 2", "-n 4", "-n auto"]:
+    for name in ["baseline", "-n 2", "-n 4"]:
         elapsed, code = results.get(name, (0.0, -1))
         speedup = baseline_s / elapsed if elapsed > 0 else 0.0
         exit_label = "" if code == 0 else f" (exit {code})"
