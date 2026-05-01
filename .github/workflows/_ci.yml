@@ -108,6 +108,13 @@ jobs:
       - name: Run warm integration tests
         run: uv run pytest tests/warm/ -v --timeout=300
 
+      - name: Run xdist integration tests
+        run: uv run pytest tests/xdist/ -v -n 2 --timeout=300 --ignore=tests/xdist/test_crash.py
+
+      - name: Run xdist crash test
+        continue-on-error: true
+        run: uv run pytest tests/xdist/test_crash/ -v --timeout=300
+
   build:
     name: Build Package
     if: ${{ inputs.run-build }}
