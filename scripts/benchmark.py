@@ -2,7 +2,8 @@
 """Benchmark samstack test suite with and without pytest-xdist.
 
 Measures wall-clock execution time of the integration test suite
-under sequential (baseline), -n 2, -n 4, and -n auto configurations.
+under sequential (baseline), -n 2, -n 4, and -n 8 configurations.
+-n 10+ overwhelms the Docker daemon with concurrent container creation.
 Outputs a table with speedup factors.
 
 Usage:
@@ -25,14 +26,18 @@ TEST_TARGETS = [
     "tests/test_sam_build.py",
     "tests/test_localstack_integration.py",
     "tests/test_subcontainer_teardown.py",
-    "tests/integration/",
+    "tests/integration/test_dynamodb_fixtures.py",
+    "tests/integration/test_s3_fixtures.py",
+    "tests/integration/test_sns_fixtures.py",
+    "tests/integration/test_sqs_fixtures.py",
 ]
 
-# Configurations to benchmark
+# Configurations to benchmark (-n 10 breaks: Docker daemon overload at 10 workers)
 CONFIGS = [
     ("baseline", []),
     ("-n 2", ["-n", "2"]),
     ("-n 4", ["-n", "4"]),
+    ("-n 8", ["-n", "8"]),
 ]
 
 TIMEOUT = 300
@@ -90,7 +95,7 @@ def main() -> None:
     print()
     print(f"{'Configuration':<14} {'Time (s)':>10} {'Speedup':>10}")
     print("-" * 36)
-    for name in ["baseline", "-n 2", "-n 4"]:
+    for name in ["baseline", "-n 2", "-n 4", "-n 8"]:
         elapsed, code = results.get(name, (0.0, -1))
         speedup = baseline_s / elapsed if elapsed > 0 else 0.0
         exit_label = "" if code == 0 else f" (exit {code})"
