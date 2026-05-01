@@ -13,7 +13,12 @@ if TYPE_CHECKING:
 
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamStartupError
-from samstack._xdist import get_worker_id, is_controller, wait_for_state_key, write_state_file
+from samstack._xdist import (
+    get_worker_id,
+    is_controller,
+    wait_for_state_key,
+    write_state_file,
+)
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
 

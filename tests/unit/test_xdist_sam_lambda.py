@@ -67,9 +67,7 @@ class TestSamLambdaEndpointMaster:
         monkeypatch.setattr(sl, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], ["FuncA"]
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
         result = next(gen)
 
         pre_warm_spy.assert_called_once_with(
@@ -96,7 +94,11 @@ class TestSamLambdaEndpointMaster:
 
         mock_settings = _make_mock_settings()
         gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], []  # empty warm_functions
+            mock_settings,
+            None,
+            "docker_net",
+            [],
+            [],  # empty warm_functions
         )
         next(gen)
 
@@ -119,9 +121,7 @@ class TestSamLambdaEndpointMaster:
             sl,
             "_pre_warm_functions",
             MagicMock(
-                side_effect=SamStartupError(
-                    port=0, log_tail="Pre-warm invoke failed"
-                )
+                side_effect=SamStartupError(port=0, log_tail="Pre-warm invoke failed")
             ),
         )
 
@@ -129,9 +129,7 @@ class TestSamLambdaEndpointMaster:
         monkeypatch.setattr(sl, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], ["FuncA"]
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
 
         with pytest.raises(SamStartupError):
             next(gen)
@@ -162,9 +160,7 @@ class TestSamLambdaEndpointGw0:
         monkeypatch.setattr(sl, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], ["FuncA"]
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
         result = next(gen)
 
         assert result == "http://127.0.0.1:3001"
@@ -197,9 +193,7 @@ class TestSamLambdaEndpointGw0:
         monkeypatch.setattr(sl, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], ["FuncA"]
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
 
         with pytest.raises(SamStartupError):
             next(gen)
@@ -231,9 +225,7 @@ class TestSamLambdaEndpointGw0:
         monkeypatch.setattr(sl, "write_state_file", write_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], ["FuncA"]
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
 
         with pytest.raises(SamStartupError):
             next(gen)
@@ -250,9 +242,7 @@ class TestSamLambdaEndpointGw0:
 
 
 class TestSamLambdaEndpointGw1Plus:
-    def test_waits_and_yields_endpoint(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_waits_and_yields_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: calls wait_for_state_key, yields endpoint, no Docker calls."""
         monkeypatch.setattr(sl, "get_worker_id", lambda: "gw1")
 
@@ -263,20 +253,14 @@ class TestSamLambdaEndpointGw1Plus:
         monkeypatch.setattr(sl, "_run_sam_service", run_spy)
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], ["FuncA"]
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], ["FuncA"])
         result = next(gen)
 
         assert result == "http://127.0.0.1:3001"
-        wait_spy.assert_called_once_with(
-            "sam_lambda_endpoint", timeout=120
-        )
+        wait_spy.assert_called_once_with("sam_lambda_endpoint", timeout=120)
         run_spy.assert_not_called()
 
-    def test_returns_after_yield(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_after_yield(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw1+ path: generator raises StopIteration after yielding (returns, no teardown)."""
         monkeypatch.setattr(sl, "get_worker_id", lambda: "gw2")
 
@@ -287,9 +271,7 @@ class TestSamLambdaEndpointGw1Plus:
         )
 
         mock_settings = _make_mock_settings()
-        gen = _sam_lambda_gen(
-            mock_settings, None, "docker_net", [], []
-        )
+        gen = _sam_lambda_gen(mock_settings, None, "docker_net", [], [])
         result = next(gen)
         assert result == "http://127.0.0.1:3001"
 

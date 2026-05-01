@@ -9,9 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-# Planning and project files
-.planning/
-
 # Logs
 logs/
 *.log
