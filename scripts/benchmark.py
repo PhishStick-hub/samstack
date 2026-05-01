@@ -15,14 +15,14 @@ import subprocess
 import sys
 import time
 
-# Integration tests (exclude unit tests, isolated suites, xdist tests)
+# Integration tests (Docker-requiring tests — skip unit tests and xdist suite)
 TEST_TARGETS = [
     "tests/test_sam_api.py",
     "tests/test_sam_lambda.py",
-    "tests/test_plugin.py",
     "tests/test_sam_build.py",
-    "tests/test_localstack.py",
-    "tests/test_docker_network.py",
+    "tests/test_localstack_integration.py",
+    "tests/test_subcontainer_teardown.py",
+    "tests/test_ryuk_sam_labels.py",
     "tests/integration/",
 ]
 
