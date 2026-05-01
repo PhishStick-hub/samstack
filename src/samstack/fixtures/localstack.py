@@ -119,8 +119,11 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
     # === gw0 / master path: create Docker infrastructure ===
     if worker_id == "gw0":
         if not acquire_infra_lock():
-            yield docker_network_name
-            return
+            pytest.fail(
+                "gw0 failed to acquire infrastructure lock — "
+                "another process may already hold it. "
+                "This should not happen under normal xdist operation."
+            )
         try:
             network = _create_and_register_network(docker_network_name)
             write_state_file("docker_network", docker_network_name)
