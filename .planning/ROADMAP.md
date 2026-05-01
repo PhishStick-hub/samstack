@@ -132,8 +132,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Integration test suite: xdist basic tests, resource parallelism, crash recovery
-- [ ] 12-02-PLAN.md — Benchmark script, README xdist section, CI updates, dev dependencies
+- [x] 12-01-PLAN.md — Integration test suite: xdist basic tests, resource parallelism, crash recovery
+- [x] 12-02-PLAN.md — Benchmark script, README xdist section, CI updates, dev dependencies
 
 ## Progress
 
@@ -145,4 +145,4 @@ Execution order: 8 → 9 → 10 → 11 → 12
 | 9. Docker Infra Xdist-Awareness | 2/2 | Complete | 2026-05-01 |
 | 10. SAM API + Lambda Xdist-Awareness | 2/2 | Complete   | 2026-04-30 |
 | 11. Mock Coordination | 1/1 | Complete   | 2026-05-01 |
-| 12. Integration Testing, CI, Docs | 0/2 | Planned | - |
+| 12. Integration Testing, CI, Docs | 2/2 | Complete   | 2026-05-01 |
