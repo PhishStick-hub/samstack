@@ -16,13 +16,15 @@ import sys
 import time
 
 # Integration tests (Docker-requiring tests — skip unit tests and xdist suite)
+# Excludes test_ryuk_sam_labels.py: checks container labels by session ID —
+# incompatible with xdist where gw0 creates containers with a different
+# testcontainers session than gw1+ workers.
 TEST_TARGETS = [
     "tests/test_sam_api.py",
     "tests/test_sam_lambda.py",
     "tests/test_sam_build.py",
     "tests/test_localstack_integration.py",
     "tests/test_subcontainer_teardown.py",
-    "tests/test_ryuk_sam_labels.py",
     "tests/integration/",
 ]
 
