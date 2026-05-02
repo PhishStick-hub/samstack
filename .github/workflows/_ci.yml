@@ -72,10 +72,50 @@ jobs:
         run: uv run pytest tests/unit/ tests/test_settings.py tests/test_process.py tests/test_errors.py -v
 
   integration-tests:
-    name: Integration Tests
+    name: Integration Tests (${{ matrix.suite.name }})
     runs-on: ubuntu-latest
     needs: [quality-checks]
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - name: core
+            cmd: >-
+              uv run pytest tests/ tests/integration/ -v -n 4 --timeout=300
+              --ignore=tests/unit
+              --ignore=tests/test_settings.py
+              --ignore=tests/test_process.py
+              --ignore=tests/test_errors.py
+              --ignore=tests/warm
+              --ignore=tests/multi_lambda
+              --ignore=tests/xdist
+              --ignore=tests/test_subcontainer_teardown.py
+              --ignore=tests/integration/test_ryuk_crash.py
+              --ignore=tests/integration/test_warm_crash.py
+            continue_on_error: false
+          - name: crash
+            cmd: >-
+              uv run pytest
+              tests/test_subcontainer_teardown.py
+              tests/integration/test_ryuk_crash.py
+              tests/integration/test_warm_crash.py
+              -v --timeout=300
+            continue_on_error: false
+          - name: warm
+            cmd: uv run pytest tests/warm/ -v -n 2 --timeout=300
+            continue_on_error: false
+          - name: multi
+            cmd: uv run pytest tests/multi_lambda/ -v -n 2 --timeout=300
+            continue_on_error: false
+          - name: xdist-self
+            cmd: >-
+              uv run pytest tests/xdist/ -v -n 2 --timeout=300
+              --ignore=tests/xdist/test_crash/
+            continue_on_error: false
+          - name: xdist-crash
+            cmd: uv run pytest tests/xdist/test_crash/ -v --timeout=300
+            continue_on_error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,33 +135,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
 
-      - name: Run integration tests
-        run: |
-          uv run pytest tests/ -v -n 4 --timeout=300 \
-            --ignore=tests/unit \
-            --ignore=tests/test_settings.py \
-            --ignore=tests/test_process.py \
-            --ignore=tests/test_errors.py \
-            --ignore=tests/warm \
-            --ignore=tests/test_subcontainer_teardown.py \
-            --ignore=tests/test_ryuk_sam_labels.py \
-            --ignore=tests/integration/test_ryuk_container_labels.py \
-            --ignore=tests/integration/test_ryuk_crash.py \
-            --ignore=tests/integration/test_warm_crash.py \
-            --ignore=tests/xdist
-
-      - name: Run integration tests (session-ID checks + crash — incompatible with xdist)
-        run: uv run pytest tests/test_subcontainer_teardown.py tests/test_ryuk_sam_labels.py tests/integration/test_ryuk_container_labels.py tests/integration/test_ryuk_crash.py -v --timeout=300
-
-      - name: Run warm integration tests
-        run: uv run pytest tests/warm/ -v --timeout=300
-
-      - name: Run xdist integration tests
-        run: uv run pytest tests/xdist/ -v -n 2 --timeout=300 --ignore=tests/xdist/test_crash/
-
-      - name: Run xdist crash test
-        continue-on-error: true
-        run: uv run pytest tests/xdist/test_crash/ -v --timeout=300
+      - name: Run ${{ matrix.suite.name }} tests
+        continue-on-error: ${{ matrix.suite.continue_on_error }}
+        run: ${{ matrix.suite.cmd }}
 
   build:
     name: Build Package
