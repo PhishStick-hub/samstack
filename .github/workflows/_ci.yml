@@ -106,7 +106,7 @@ jobs:
             cmd: uv run pytest tests/warm/ -v -n 2 --timeout=300
             continue_on_error: false
           - name: multi
-            cmd: uv run pytest tests/multi_lambda/ -v -n 2 --timeout=300
+            cmd: uv run pytest tests/multi_lambda/ -v --timeout=300
             continue_on_error: false
           - name: xdist-self
             cmd: >-

@@ -43,6 +43,16 @@ def samstack_settings() -> SamStackSettings:
 
 
 @pytest.fixture(scope="session")
+def warm_functions() -> list[str]:
+    return ["HelloWorldFunction"]
+
+
+@pytest.fixture(scope="session")
+def warm_api_routes() -> dict[str, str]:
+    return {"HelloWorldFunction": "/hello"}
+
+
+@pytest.fixture(scope="session")
 def sam_env_vars(sam_env_vars: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
     """Extend default env vars with TEST_BUCKET for localstack integration test."""
     sam_env_vars["Parameters"]["TEST_BUCKET"] = INTEGRATION_BUCKET

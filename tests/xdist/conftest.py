@@ -52,3 +52,13 @@ def integration_bucket(s3_client: S3Client) -> str:
     """Create the integration test bucket before any test uses it."""
     s3_client.create_bucket(Bucket=INTEGRATION_BUCKET)
     return INTEGRATION_BUCKET
+
+
+@pytest.fixture(scope="session")
+def warm_functions() -> list[str]:
+    return ["HelloWorldFunction"]
+
+
+@pytest.fixture(scope="session")
+def warm_api_routes() -> dict[str, str]:
+    return {"HelloWorldFunction": "/hello"}
