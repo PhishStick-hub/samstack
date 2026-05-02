@@ -16,3 +16,4 @@ logs/
 # SAM build artifacts and config
 .aws-sam/
 samconfig.toml
+.planning/
