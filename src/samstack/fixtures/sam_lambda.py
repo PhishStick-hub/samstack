@@ -125,6 +125,7 @@ def sam_lambda_endpoint(
         StateKeys.SAM_LAMBDA_ENDPOINT,
         on_controller=_on_controller,
         error_prefix="sam_lambda_endpoint container failed to start",
+        wait_for_workers_on_teardown=True,
     ) as endpoint:
         yield endpoint
 

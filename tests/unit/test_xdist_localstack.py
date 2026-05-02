@@ -240,6 +240,7 @@ class TestLocalStackContainerGw0:
         disconnect_spy = MagicMock()
         monkeypatch.setattr(loc, "_disconnect_container_from_network", disconnect_spy)
         monkeypatch.setattr(loc, "write_state_file", MagicMock())
+        monkeypatch.setattr(loc, "wait_for_workers_done", MagicMock())
 
         mock_settings = _make_mock_settings()
         gen = _localstack_container_gen(mock_settings, "samstack-net")
@@ -249,6 +250,32 @@ class TestLocalStackContainerGw0:
 
         mock_container.stop.assert_called()
         disconnect_spy.assert_called()
+
+    def test_waits_for_workers_before_stopping(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Controller blocks on wait_for_workers_done BEFORE container.stop()."""
+        monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
+
+        mock_container, _ = _setup_docker_mocks(monkeypatch)
+        monkeypatch.setattr(loc, "write_state_file", MagicMock())
+
+        call_order: list[str] = []
+        monkeypatch.setattr(
+            loc,
+            "wait_for_workers_done",
+            lambda: call_order.append("wait"),
+        )
+        mock_container.stop.side_effect = lambda: call_order.append("stop")
+
+        mock_settings = _make_mock_settings()
+        gen = _localstack_container_gen(mock_settings, "samstack-net")
+        next(gen)
+        gen.close()
+
+        assert call_order == ["wait", "stop"], (
+            f"wait_for_workers_done must run before container.stop; got {call_order}"
+        )
 
 
 # ---------------------------------------------------------------------------

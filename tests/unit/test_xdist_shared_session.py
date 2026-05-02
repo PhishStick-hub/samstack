@@ -118,6 +118,51 @@ class TestControllerPath:
         assert args[0] == "k"  # per-key error slot, not the legacy 'error'
         assert "kaboom" in args[1]
 
+    def test_wait_for_workers_runs_before_resource_release(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When wait_for_workers_on_teardown=True, the wait must complete
+        before on_controller's __exit__ runs (i.e., before the resource is
+        released)."""
+        monkeypatch.setattr("samstack._xdist.worker_role", lambda: Role.CONTROLLER)
+        monkeypatch.setattr("samstack._xdist.write_state_file", MagicMock())
+
+        call_order: list[str] = []
+        monkeypatch.setattr(
+            "samstack._xdist.wait_for_workers_done",
+            lambda: call_order.append("wait"),
+        )
+
+        @contextmanager
+        def _on_ctrl() -> Generator[tuple[str, str], None, None]:
+            try:
+                yield "resource", "state"
+            finally:
+                call_order.append("release")
+
+        with xdist_shared_session(
+            "k", on_controller=_on_ctrl, wait_for_workers_on_teardown=True
+        ):
+            pass
+
+        assert call_order == ["wait", "release"], (
+            f"wait must run before resource release; got {call_order}"
+        )
+
+    def test_wait_for_workers_skipped_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("samstack._xdist.worker_role", lambda: Role.CONTROLLER)
+        monkeypatch.setattr("samstack._xdist.write_state_file", MagicMock())
+
+        wait_spy = MagicMock()
+        monkeypatch.setattr("samstack._xdist.wait_for_workers_done", wait_spy)
+
+        with xdist_shared_session("k", on_controller=lambda: _resource()):
+            pass
+
+        wait_spy.assert_not_called()
+
     def test_error_prefix_wraps_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("samstack._xdist.worker_role", lambda: Role.CONTROLLER)
 

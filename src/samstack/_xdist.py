@@ -305,6 +305,7 @@ def xdist_shared_session(
     on_worker: Callable[[S], T] = lambda v: v,  # type: ignore[assignment,return-value]
     timeout: float = 120.0,
     error_prefix: str | None = None,
+    wait_for_workers_on_teardown: bool = False,
 ) -> Iterator[T]:
     """Coordinate a shared session-scoped resource across xdist workers.
 
@@ -323,6 +324,13 @@ def xdist_shared_session(
       controller-side failure message before it's published to shared state.
       Workers see ``"<prefix>: <exception>"``; helpful when the exception type
       alone doesn't communicate which fixture failed.
+    - ``wait_for_workers_on_teardown`` — when True, the CONTROLLER blocks on
+      :func:`wait_for_workers_done` BEFORE its ``on_controller`` context
+      exits. Use this for any controller-owned shared resource (LocalStack,
+      SAM containers) that workers may still be calling at teardown — pytest
+      finalises session-scoped fixtures in LIFO order, so a controller that
+      finishes its assigned tests first would otherwise tear down shared
+      infra while workers are still mid-test.
 
     Roles:
 
@@ -353,7 +361,15 @@ def xdist_shared_session(
         with on_controller() as (resource, state_value):
             if role is Role.CONTROLLER:
                 write_state_file(state_key, state_value)
-            yield resource
+            try:
+                yield resource
+            finally:
+                # Block teardown until every worker signals completion, so
+                # we don't close the shared resource while a worker is still
+                # talking to it. Has to live INSIDE on_controller's context
+                # so we still hold the resource while we wait.
+                if role is Role.CONTROLLER and wait_for_workers_on_teardown:
+                    wait_for_workers_done()
     except Exception as exc:
         if role is Role.CONTROLLER:
             message = f"{error_prefix}: {exc}" if error_prefix else str(exc)

@@ -107,12 +107,14 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
     """Create a Docker bridge network shared by LocalStack and SAM containers.
 
     Under xdist: the controller (gw0) creates the network and writes its name
-    to shared state; workers (gw1+) read the name and proxy. The controller
-    additionally waits for all workers to signal completion before tearing
-    down — this gates teardown of every fixture transitively depending on
-    docker_network (LocalStack, sam_api, sam_lambda_endpoint), preventing
-    race conditions where a faster controller would tear down shared infra
-    while slower workers are still issuing requests.
+    to shared state; workers (gw1+) read the name and proxy.
+
+    Teardown coordination is owned by each controller-owned shared resource
+    (``localstack_container``, ``sam_api``, ``sam_lambda_endpoint``) — those
+    fixtures call :func:`wait_for_workers_done` BEFORE stopping their
+    containers. This fixture deliberately does not wait, because pytest
+    finalises in LIFO order: ``docker_network`` runs *after* its dependents,
+    by which time those containers are already gone.
     """
     role = worker_role()
 
@@ -122,8 +124,8 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
         try:
             yield resolved_name
         finally:
-            # Signal completion so the controller can safely tear down shared
-            # infrastructure (network + LocalStack + SAM containers).
+            # Signal completion so controllers waiting in their own teardowns
+            # (localstack_container, sam_api, sam_lambda_endpoint) can proceed.
             with contextlib.suppress(Exception):
                 write_state_file(StateKeys.worker_done(get_worker_id()), True)
         return
@@ -153,12 +155,6 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
     try:
         yield docker_network_name
     finally:
-        # Wait for all workers to finish before tearing down shared infra.
-        # All controller-owned shared resources (LocalStack, sam_api,
-        # sam_lambda_endpoint) depend on docker_network, so gating teardown
-        # here gates all of them.
-        if role is Role.CONTROLLER:
-            wait_for_workers_done()
         try:
             _teardown_network(network, docker_network_name)
         finally:
@@ -204,13 +200,14 @@ def localstack_container(
     to shared state; workers wait for the endpoint and yield a lightweight
     proxy without any Docker API calls.
 
-    Teardown ordering: workers signal completion via ``docker_network``'s
-    teardown (the shared lowest-common dependency); the controller's
-    ``docker_network`` teardown blocks on those signals before *any*
-    controller-owned resource (this fixture, sam_api, sam_lambda_endpoint)
-    is allowed to stop. So this fixture itself does not need to wait —
-    pytest's fixture-finalization order guarantees we run before
-    ``docker_network``'s teardown completes.
+    Teardown ordering: pytest finalises session-scoped fixtures in LIFO
+    order, so this fixture tears down BEFORE its dependency
+    ``docker_network``. To prevent stopping LocalStack while workers are
+    still mid-test (their resource fixtures' per-test teardowns hit S3/
+    DynamoDB/SQS through this LocalStack), the CONTROLLER blocks on
+    :func:`wait_for_workers_done` inside its own teardown before stopping
+    the container. ``sam_api`` and ``sam_lambda_endpoint`` apply the same
+    pattern via ``xdist_shared_session(wait_for_workers_on_teardown=True)``.
     """
     role = worker_role()
 
@@ -265,6 +262,13 @@ def localstack_container(
     try:
         yield container
     finally:
+        # Block teardown until every worker has signalled completion. Workers
+        # use boto3 clients pointed at this LocalStack instance during their
+        # own per-test teardown of resource fixtures (s3_bucket, dynamodb_table,
+        # ...); stopping the container before they finish would surface as
+        # ConnectionRefusedError during their session teardown.
+        if role is Role.CONTROLLER:
+            wait_for_workers_done()
         try:
             _disconnect_container_from_network(client, docker_network, container)
         except Exception as exc:
