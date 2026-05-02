@@ -24,7 +24,9 @@ Everything runs on an isolated Docker bridge network created per test session. A
 - Docker Desktop (macOS / Windows) or Docker Engine (Linux)
 - No `sam` CLI on the host
 
-## Installation
+## Quick start
+
+### 1. Install
 
 ```bash
 uv add --group dev samstack
@@ -34,9 +36,7 @@ pip install samstack
 
 samstack registers itself as a pytest plugin automatically via the `pytest11` entry point — no `conftest.py` imports needed.
 
-## Minimal setup
-
-### 1. `pyproject.toml`
+### 2. Configure `pyproject.toml`
 
 ```toml
 [tool.samstack]
@@ -45,7 +45,7 @@ sam_image = "public.ecr.aws/sam/build-python3.13"
 
 `sam_image` is the only required field.
 
-### 2. `template.yaml`
+### 3. Write a SAM template
 
 Standard AWS SAM template. Set `Architectures` to match your host:
 
@@ -71,7 +71,7 @@ Resources:
             Method: get
 ```
 
-### 3. Write tests
+### 4. Write tests
 
 ```python
 # tests/test_api.py
@@ -94,7 +94,7 @@ def test_direct_invoke(lambda_client: LambdaClient) -> None:
     assert payload["statusCode"] == 200
 ```
 
-### 4. Run
+### 5. Run
 
 ```bash
 uv run pytest tests/ -v --timeout=300
