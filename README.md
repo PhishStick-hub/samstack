@@ -466,7 +466,7 @@ warm_functions = ["ProcessOrder", "SendNotification"]
 ### Known limitations
 
 - **`--debug-port` is incompatible** with warm containers. SAM CLI (issue [#7308](https://github.com/aws/aws-sam-cli/issues/7308)) does not support port-based debugging when `--warm-containers LAZY` is set. Do not pass `--debug-port` in `sam_api_extra_args` or `sam_lambda_extra_args` when using warm containers.
-- **No auto-discovery** of functions from the SAM template. You must explicitly list function names in `warm_functions` and route paths in `warm_api_routes`. Auto-discovery is planned for v1.2.
+- **No auto-discovery** of functions from the SAM template. You must explicitly list function names in `warm_functions` and route paths in `warm_api_routes`.
 - **No multi-template support** per session. All functions must be declared in the single template referenced by `samstack_settings.template`.
 - **Pre-warming is sequential** — each function or route is warmed one at a time. Large function lists may add noticeable startup time.
 - **Crash test skips on macOS**. The Ryuk reaper process inside Docker Desktop's Linux VM does not reliably detect SIGKILL across the TCP proxy boundary. Warm container crash cleanup is verified on Linux CI.
@@ -493,7 +493,7 @@ def handler(event, context):
 
 In production those env vars are unset, so boto3 hits real AWS with no code changes.
 
-> **Breaking change (v0.3.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to LocalStack. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
+> **Breaking change (v1.0.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to LocalStack. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
 
 ---
 
