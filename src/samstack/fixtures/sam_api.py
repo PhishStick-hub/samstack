@@ -137,5 +137,6 @@ def sam_api(
         on_controller=_on_controller,
         error_prefix="sam_api container failed to start",
         wait_for_workers_on_teardown=True,
+        timeout=300,
     ) as endpoint:
         yield endpoint

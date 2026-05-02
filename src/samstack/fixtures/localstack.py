@@ -213,7 +213,7 @@ def localstack_container(
 
     # === Worker path: wait for controller, yield proxy, no Docker ===
     if role is Role.WORKER:
-        endpoint = wait_for_state_key(StateKeys.LOCALSTACK_ENDPOINT, timeout=120)
+        endpoint = wait_for_state_key(StateKeys.LOCALSTACK_ENDPOINT, timeout=300)
         yield _LocalStackContainerProxy(endpoint)
         return
 

@@ -136,7 +136,7 @@ def make_lambda_mock(
             state_key = StateKeys.mock_spy_bucket(alias)
             if role is Role.WORKER:
                 # Worker: wait for controller to create shared spy bucket.
-                shared_bucket_name = wait_for_state_key(state_key, timeout=120)
+                shared_bucket_name = wait_for_state_key(state_key, timeout=300)
                 spy_bucket = S3Bucket(name=shared_bucket_name, client=s3_client)
             else:
                 # Master / controller: create spy bucket + write name to state.
