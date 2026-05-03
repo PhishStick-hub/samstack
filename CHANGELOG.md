@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.3.0](https://github.com/PhishStick-hub/samstack/compare/v2.2.0...v2.3.0) (2026-05-04)
+
+
+### Features
+
+* **xdist:** pytest-xdist parallel testing support ([34d9151](https://github.com/PhishStick-hub/samstack/commit/34d9151bf85d33e412992ebfc044eeedea8eac22))
+
+
+### Bug Fixes
+
+* **crash:** register Ryuk network filter to clean Lambda runtime containers ([c113e96](https://github.com/PhishStick-hub/samstack/commit/c113e96))
+* **ci:** pre-warm Lambda A + MockB in multi suite; raise xdist timeouts for slow CI ([7fc17b3](https://github.com/PhishStick-hub/samstack/commit/7fc17b3))
+* **ci:** pre-warm HelloWorldFunction and raise crash poll timeout ([4351fb1](https://github.com/PhishStick-hub/samstack/commit/4351fb1))
+* **tests:** prevent HelloWorldFunction pre-warm bleeding into multi_lambda suite ([1d07b87](https://github.com/PhishStick-hub/samstack/commit/1d07b87))
+
+
 ## [2.2.0](https://github.com/PhishStick-hub/samstack/compare/v2.1.0...v2.2.0) (2026-04-26)
 
 
