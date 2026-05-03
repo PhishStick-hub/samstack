@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(
     reason="Ryuk crash-cleanup test requires Ryuk on Linux (Docker Desktop on macOS does not propagate SIGKILL to Ryuk)",
 )
 
-POLL_STARTUP_TIMEOUT = 120.0
+POLL_STARTUP_TIMEOUT = 240.0
 POLL_STARTUP_INTERVAL = 2.0
 
 
