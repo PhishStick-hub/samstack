@@ -41,7 +41,7 @@ def _pre_warm_api_routes(
     for func_name, path in routes.items():
         url = f"{endpoint}{path}"
         try:
-            with contextlib.closing(urllib.request.urlopen(url, timeout=10.0)):  # noqa: S310
+            with contextlib.closing(urllib.request.urlopen(url, timeout=120.0)):  # noqa: S310
                 pass
         except urllib.error.HTTPError:
             pass
@@ -137,6 +137,6 @@ def sam_api(
         on_controller=_on_controller,
         error_prefix="sam_api container failed to start",
         wait_for_workers_on_teardown=True,
-        timeout=300,
+        timeout=600,
     ) as endpoint:
         yield endpoint

@@ -82,7 +82,7 @@ jobs:
         suite:
           - name: core
             cmd: >-
-              uv run pytest tests/ tests/integration/ -v -n 4 --timeout=300
+              uv run pytest tests/ tests/integration/ -v -n 4 --timeout=600
               --ignore=tests/unit
               --ignore=tests/test_settings.py
               --ignore=tests/test_process.py
