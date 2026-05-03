@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/PhishStick-hub/samstack/compare/v2.2.0...v2.3.0) (2026-05-03)
+
+
+### Features
+
+* **xdist:** pytest-xdist parallel testing support ([#21](https://github.com/PhishStick-hub/samstack/issues/21)) ([34d9151](https://github.com/PhishStick-hub/samstack/commit/34d9151bf85d33e412992ebfc044eeedea8eac22))
+
 ## [2.2.0](https://github.com/PhishStick-hub/samstack/compare/v2.1.0...v2.2.0) (2026-04-26)
 
 
