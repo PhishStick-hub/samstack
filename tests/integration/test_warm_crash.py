@@ -28,10 +28,13 @@ pytestmark = pytest.mark.skipif(
 def _write_warm_crash_session(session_dir: Path, *, fixture_dir: Path) -> Path:
     """Write a pytest session that starts SAM API with warm containers and stalls.
 
-    Injects a session-scoped autouse fixture that writes ``ready.flag`` the
-    moment ``sam_api`` is resolved (i.e. after pre-warming completes and warm
-    Lambda containers exist).  Returns the path to that flag file so the outer
-    test can watch for it instead of polling Docker with a guessed timeout.
+    Injects a session-scoped autouse fixture that writes ``ready.flag`` once
+    ``sam_api`` is fully resolved.  The file contains the Docker network name
+    on line 1 and a comma-separated list of short container IDs (all containers
+    connected to that network at that moment) on line 2.
+
+    The outer test waits for the file, snapshots the container IDs, then
+    SIGKILLs and verifies every snapshotted container has been removed.
     """
     ready_file = session_dir / "ready.flag"
 
@@ -39,6 +42,7 @@ def _write_warm_crash_session(session_dir: Path, *, fixture_dir: Path) -> Path:
     conftest.write_text(f"""\
 from __future__ import annotations
 from pathlib import Path
+import docker as docker_sdk
 import pytest
 from samstack.settings import SamStackSettings
 
@@ -67,10 +71,14 @@ def warm_api_routes() -> dict[str, str]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _signal_ready(sam_api: str) -> None:
-    # sam_api depends on sam_lambda_endpoint which pre-warmed WarmCheckFunction
-    # via direct invoke — warm Lambda containers exist on disk at this point.
-    READY_FILE.write_text("ready")
+def _signal_ready(sam_api: str, docker_network: str) -> None:
+    # sam_api depends on sam_lambda_endpoint which already pre-warmed
+    # WarmCheckFunction — warm Lambda containers exist on the network now.
+    _docker = docker_sdk.from_env()
+    network = _docker.networks.get(docker_network)
+    network.reload()
+    cids = [c.id for c in network.containers]
+    READY_FILE.write_text(f"{{docker_network}}\\n{{','.join(cids)}}")
 """)
 
     test_file = session_dir / "test_warm_and_stall.py"
@@ -113,18 +121,27 @@ def _wait_for_ready(
 
 def _poll_containers_gone(
     client: docker.DockerClient,
-    name_prefix: str,
+    container_ids: list[str],
     timeout: float = 30.0,
     interval: float = 0.5,
-) -> bool:
-    """Return True if zero containers matching name_prefix remain."""
+) -> list[str]:
+    """Poll until all container IDs are unreachable, or timeout.
+
+    Returns the list of IDs still present after timeout (empty means all gone).
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        remaining = client.containers.list(all=True, filters={"name": name_prefix})
+        remaining = []
+        for cid in container_ids:
+            try:
+                client.containers.get(cid)
+                remaining.append(cid)
+            except docker.errors.NotFound:
+                pass
         if not remaining:
-            return True
+            return []
         time.sleep(interval)
-    return False
+    return remaining
 
 
 class TestWarmCrashCleanup:
@@ -151,19 +168,21 @@ class TestWarmCrashCleanup:
             f"Check SAM logs under {session_dir}."
         )
 
-        containers = docker_client.containers.list(all=True, filters={"name": "sam_"})
-        assert containers, (
-            "No sam_ containers found after ready signal. "
-            f"All containers: {[c.name for c in docker_client.containers.list(all=True)]}"
+        lines = ready_file.read_text().strip().splitlines()
+        network_name = lines[0]
+        container_ids = lines[1].split(",") if len(lines) > 1 and lines[1] else []
+
+        assert container_ids, (
+            f"No containers on network '{network_name}' at ready time — "
+            "warm Lambda container was not created."
         )
 
         os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         proc.wait()
 
-        gone = _poll_containers_gone(docker_client, "sam_", timeout=30.0, interval=0.5)
-        assert gone, (
-            "Warm Lambda runtime sub-containers still present 30s after SIGKILL. "
-            "Ryuk did not clean them up. Verify TESTCONTAINERS_RYUK_DISABLED is not set "
-            f"and test is on Linux. Remaining: "
-            f"{[c.name for c in docker_client.containers.list(all=True, filters={'name': 'sam_'})]}"
+        remaining = _poll_containers_gone(docker_client, container_ids, timeout=30.0)
+        assert not remaining, (
+            "Containers still present 30s after SIGKILL — Ryuk did not clean them up. "
+            "Verify TESTCONTAINERS_RYUK_DISABLED is not set and test is on Linux. "
+            f"Network: '{network_name}'. Still running: {remaining}"
         )
