@@ -24,7 +24,9 @@ Everything runs on an isolated Docker bridge network created per test session. A
 - Docker Desktop (macOS / Windows) or Docker Engine (Linux)
 - No `sam` CLI on the host
 
-## Installation
+## Quick start
+
+### 1. Install
 
 ```bash
 uv add --group dev samstack
@@ -34,9 +36,7 @@ pip install samstack
 
 samstack registers itself as a pytest plugin automatically via the `pytest11` entry point — no `conftest.py` imports needed.
 
-## Minimal setup
-
-### 1. `pyproject.toml`
+### 2. Configure `pyproject.toml`
 
 ```toml
 [tool.samstack]
@@ -45,7 +45,7 @@ sam_image = "public.ecr.aws/sam/build-python3.13"
 
 `sam_image` is the only required field.
 
-### 2. `template.yaml`
+### 3. Write a SAM template
 
 Standard AWS SAM template. Set `Architectures` to match your host:
 
@@ -71,7 +71,7 @@ Resources:
             Method: get
 ```
 
-### 3. Write tests
+### 4. Write tests
 
 ```python
 # tests/test_api.py
@@ -94,7 +94,7 @@ def test_direct_invoke(lambda_client: LambdaClient) -> None:
     assert payload["statusCode"] == 200
 ```
 
-### 4. Run
+### 5. Run
 
 ```bash
 uv run pytest tests/ -v --timeout=300
@@ -466,7 +466,7 @@ warm_functions = ["ProcessOrder", "SendNotification"]
 ### Known limitations
 
 - **`--debug-port` is incompatible** with warm containers. SAM CLI (issue [#7308](https://github.com/aws/aws-sam-cli/issues/7308)) does not support port-based debugging when `--warm-containers LAZY` is set. Do not pass `--debug-port` in `sam_api_extra_args` or `sam_lambda_extra_args` when using warm containers.
-- **No auto-discovery** of functions from the SAM template. You must explicitly list function names in `warm_functions` and route paths in `warm_api_routes`. Auto-discovery is planned for v1.2.
+- **No auto-discovery** of functions from the SAM template. You must explicitly list function names in `warm_functions` and route paths in `warm_api_routes`.
 - **No multi-template support** per session. All functions must be declared in the single template referenced by `samstack_settings.template`.
 - **Pre-warming is sequential** — each function or route is warmed one at a time. Large function lists may add noticeable startup time.
 - **Crash test skips on macOS**. The Ryuk reaper process inside Docker Desktop's Linux VM does not reliably detect SIGKILL across the TCP proxy boundary. Warm container crash cleanup is verified on Linux CI.
@@ -493,7 +493,7 @@ def handler(event, context):
 
 In production those env vars are unset, so boto3 hits real AWS with no code changes.
 
-> **Breaking change (v0.3.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to LocalStack. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
+> **Breaking change (v1.0.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to LocalStack. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
 
 ---
 
@@ -665,6 +665,73 @@ Session-scoped factory. Creates a spy bucket (or reuses one), injects `MOCK_SPY_
 - Each incoming event is JSON-serialised (normalized into `Call` shape) and written to `s3://{spy_bucket}/spy/{alias}/{iso-timestamp}-{uuid}.json` — lex sort equals chronological order.
 - `response_queue` lives at `s3://{spy_bucket}/mock-responses/{alias}/queue.json`; the head is popped and returned, remainder written back (or object deleted when empty).
 - Multiple mocks can share one bucket — each owns its own prefix.
+
+---
+
+## Parallel testing with pytest-xdist
+
+Run samstack tests in parallel across multiple workers using [pytest-xdist](https://github.com/pytest-dev/pytest-xdist). All workers share a single set of Docker infrastructure (LocalStack + SAM containers) — infrastructure starts once on worker 0 and is transparently shared with all other workers.
+
+### Installation
+
+```bash
+uv add --group dev pytest-xdist
+```
+
+No conftest configuration needed — samstack auto-detects xdist workers and coordinates infrastructure automatically.
+
+### Usage
+
+```bash
+# Run tests with 2 parallel workers
+uv run pytest tests/ -n 2 --timeout=300
+
+# Run with 4 workers
+uv run pytest tests/ -n 4 --timeout=300
+
+# Auto-detect optimal worker count (CPU-based)
+uv run pytest tests/ -n auto --timeout=300
+```
+
+### How it works
+
+Worker 0 (gw0) manages all Docker lifecycle — it creates the Docker network, starts LocalStack, runs `sam build`, and launches SAM containers. Endpoint URLs and build status are written to a shared JSON state file. Workers 1+ read the state file and yield the same endpoints without any Docker API calls. At session teardown, only gw0 stops the containers and removes the network.
+
+Per-worker AWS resource isolation is automatic — all resource fixtures (S3 buckets, DynamoDB tables, SQS queues, SNS topics) use UUID-based naming, so workers never collide even though they share one LocalStack instance.
+
+### Supported `--dist` modes
+
+| Mode | Supported | Notes |
+|------|-----------|-------|
+| `--dist=load` | ✅ | Default. Sends pending tests to workers as they become available. |
+| `--dist=worksteal` | ✅ | Workers steal tests from busy workers. Good for uneven test durations. |
+| `--dist=each` | ❌ | Each worker would duplicate Docker infrastructure — defeats the purpose of shared infra. |
+| `--dist=no` | ❌ | All tests run on the controller — no parallelism benefit. |
+
+### CI setup
+
+Example GitHub Actions step (adds ∼1-2 min to integration test duration):
+
+```yaml
+- name: Run xdist integration tests
+  run: uv run pytest tests/xdist/ -v -n 2 --timeout=300 --ignore=tests/xdist/test_crash.py
+```
+
+The crash recovery test runs separately (not under xdist — it launches its own subprocess):
+
+```yaml
+- name: Run xdist crash test
+  continue-on-error: true
+  run: uv run pytest tests/xdist/test_crash/ -v --timeout=300
+```
+
+### Known limitations
+
+- **No `--dist=each` or `--dist=no`** — these modes duplicate Docker infrastructure per worker, defeating the purpose of shared infrastructure.
+- **No per-worker LocalStack** — all workers share one LocalStack instance. Per-worker AWS resource isolation is achieved through UUID-based naming, not separate LocalStack containers.
+- **File-level parallelism only** — pytest-xdist distributes test files across workers. Tests within the same file always run on the same worker.
+- **Crash test may be unreliable on macOS** — the crash recovery test uses subprocess management that depends on Docker's Ryuk reaper, which has known limitations on macOS Docker Desktop.
+- **No explicit worker-to-resource grouping** — if you need specific tests to run on specific workers, use `@pytest.mark.xdist_group` in your own conftest.
 
 ---
 

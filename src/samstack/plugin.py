@@ -14,6 +14,13 @@ from pathlib import Path
 
 import pytest
 
+from samstack._xdist import (
+    Role,
+    StateKeys,
+    get_worker_id,
+    worker_role,
+    write_state_file,
+)
 from samstack.fixtures.localstack import (
     docker_network,
     docker_network_name,
@@ -91,6 +98,24 @@ def _find_settings() -> SamStackSettings:
     raise FileNotFoundError(
         "pyproject.toml not found. samstack requires [tool.samstack] in pyproject.toml."
     )
+
+
+def pytest_sessionfinish(
+    session: pytest.Session, exitstatus: int | pytest.ExitCode
+) -> None:
+    """Guarantee every xdist worker writes its done-signal on session exit.
+
+    Workers signal completion inside fixture teardowns (docker_network,
+    xdist_shared_session). If a worker has no tests assigned it never runs
+    those fixtures and never writes the signal, causing the controller's
+    wait_for_workers_done() to time out. Writing here — after all fixture
+    teardowns, before the process exits — covers that gap.
+    """
+    if worker_role() is Role.WORKER:
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            write_state_file(StateKeys.worker_done(get_worker_id()), True)
 
 
 @pytest.fixture(scope="session")

@@ -5,12 +5,24 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import Callable, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from samstack._constants import LOCALSTACK_INTERNAL_URL
+from samstack._xdist import (
+    Role,
+    StateKeys,
+    wait_for_state_key,
+    worker_role,
+    write_error_for,
+    write_state_file,
+)
 from samstack.mock.types import Call, CallList
 from samstack.resources.s3 import S3Bucket
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 class LambdaMock:
@@ -78,6 +90,7 @@ class LambdaMock:
 @pytest.fixture(scope="session")
 def make_lambda_mock(
     make_s3_bucket: Callable[[str], S3Bucket],
+    s3_client: "S3Client",
     sam_env_vars: dict[str, dict[str, str]],
 ) -> Iterator[Callable[..., LambdaMock]]:
     """Session-scoped factory that wires up a mock Lambda.
@@ -115,11 +128,35 @@ def make_lambda_mock(
         alias: str,
         bucket: S3Bucket | None = None,
     ) -> LambdaMock:
-        spy_bucket = bucket if bucket is not None else make_s3_bucket(f"mock-{alias}")
+        # D-06: If user provides a pre-existing bucket, skip all xdist logic
+        if bucket is not None:
+            spy_bucket = bucket
+        else:
+            role = worker_role()
+            state_key = StateKeys.mock_spy_bucket(alias)
+            if role is Role.WORKER:
+                # Worker: wait for controller to create shared spy bucket.
+                shared_bucket_name = wait_for_state_key(state_key, timeout=300)
+                spy_bucket = S3Bucket(name=shared_bucket_name, client=s3_client)
+            else:
+                # Master / controller: create spy bucket + write name to state.
+                try:
+                    spy_bucket = make_s3_bucket(f"mock-{alias}")
+                except Exception as exc:
+                    if role is Role.CONTROLLER:
+                        write_error_for(
+                            state_key,
+                            f"mock spy bucket 'mock-{alias}' creation failed: {exc}",
+                        )
+                    raise
+                if role is Role.CONTROLLER:
+                    write_state_file(state_key, spy_bucket.name)
+
+        # Mutate sam_env_vars on ALL workers for in-memory consistency
         sam_env_vars[function_name] = {
             "MOCK_SPY_BUCKET": spy_bucket.name,
             "MOCK_FUNCTION_NAME": alias,
-            "AWS_ENDPOINT_URL_S3": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_S3": LOCALSTACK_INTERNAL_URL,
         }
         mock = LambdaMock(name=alias, bucket=spy_bucket)
         created.append(mock)

@@ -43,6 +43,9 @@ _DEFAULT_HTTP_RESPONSE: dict[str, Any] = {
 }
 _DEFAULT_INVOKE_RESPONSE: dict[str, Any] = {}
 
+# Intentional module-level global: boto3 clients are expensive to create and
+# this module runs inside a Lambda warm container. Caching the client across
+# invocations avoids repeated TCP handshake + credential resolution.
 _s3: S3Client | None = None
 
 
