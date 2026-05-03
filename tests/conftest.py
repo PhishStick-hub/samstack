@@ -24,7 +24,6 @@ _CRASH_FILES = frozenset(
 )
 
 
-
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         parts = item.path.parts
@@ -43,7 +42,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.crash)
         else:
             item.add_marker(pytest.mark.integration)
-
 
 
 # multi_lambda/, warm/, and xdist/ each pin samstack_settings to a different
