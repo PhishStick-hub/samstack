@@ -46,6 +46,15 @@ packages = ["src/samstack"]
 filterwarnings = [
     "ignore::DeprecationWarning:testcontainers.*",
 ]
+markers = [
+    "unit: no Docker required — settings, process helpers, error types, plugin discovery",
+    "integration: requires Docker + SAM + LocalStack; hello_world fixture; run with -n 4",
+    "crash: Ryuk teardown and crash-recovery scenarios; sequential, may be skipped on macOS",
+    "warm: warm-container verification; warm_check fixture; isolated session, run with -n 2",
+    "multi: multi-Lambda mock flow; multi_lambda fixture; isolated session, sequential",
+    "xdist: xdist parallel-execution self-tests; isolated session, run with -n 2",
+    "xdist_crash: xdist crash tests expecting container startup failure; continue_on_error",
+]
 
 [dependency-groups]
 dev = [
