@@ -84,6 +84,15 @@ def _create_and_register_network(name: str) -> docker_sdk.models.networks.Networ
         raise DockerNetworkError(name=name, reason=str(exc)) from exc
     if not testcontainers_config.ryuk_disabled:
         Reaper.get_instance()
+        # Lambda runtime containers spawned by SAM via Docker socket are not
+        # managed by testcontainers and do not get LABEL_SESSION_ID.  Register
+        # a Ryuk network filter so those containers are removed before the
+        # network on crash.  Ryuk processes containers before networks, so
+        # this filter fires first and unblocks network removal.
+        with contextlib.suppress(Exception):
+            rs = Reaper._socket
+            if rs is not None:
+                rs.send(f"network={name}\r\n".encode())
     return network
 
 
