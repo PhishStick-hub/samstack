@@ -93,18 +93,12 @@ def is_controller(worker_id: str | None = None) -> bool:
 # --- Session state directory --------------------------------------------------
 
 
-_session_uuid: str | None = None
-
-
 def get_session_uuid() -> str:
     """Return a stable 8-char session id shared across all xdist workers."""
-    global _session_uuid
-    if _session_uuid is None:
-        # Under xdist, all workers see the same PYTEST_XDIST_TESTRUNUID, so
-        # they share a state directory. Outside xdist we fabricate one.
-        xdist_uid = os.environ.get("PYTEST_XDIST_TESTRUNUID")
-        _session_uuid = (xdist_uid or uuid.uuid4().hex)[:8]
-    return _session_uuid
+    # Under xdist, all workers see the same PYTEST_XDIST_TESTRUNUID, so
+    # they share a state directory. Outside xdist we fabricate one.
+    xdist_uid = os.environ.get("PYTEST_XDIST_TESTRUNUID")
+    return (xdist_uid or uuid.uuid4().hex)[:8]
 
 
 def get_state_dir() -> Path:
@@ -115,16 +109,6 @@ def get_state_dir() -> Path:
 
 
 # --- State file r/w -----------------------------------------------------------
-
-
-_STATE_FILE_LOCK: FileLock | None = None
-
-
-def _get_state_lock() -> FileLock:
-    global _STATE_FILE_LOCK
-    if _STATE_FILE_LOCK is None:
-        _STATE_FILE_LOCK = FileLock(str(get_state_dir() / "state.lock"), timeout=10.0)
-    return _STATE_FILE_LOCK
 
 
 def read_state_file() -> dict[str, Any]:
@@ -140,7 +124,8 @@ def read_state_file() -> dict[str, Any]:
 
 def write_state_file(key: str, value: Any) -> None:
     """Atomically merge ``{key: value}`` into the shared state file."""
-    with _get_state_lock():
+    lock = FileLock(str(get_state_dir() / "state.lock"), timeout=10.0)
+    with lock:
         state = read_state_file()
         state[key] = value
         state_path = get_state_dir() / "state.json"
@@ -222,39 +207,34 @@ def write_error_for(state_key: str, message: str) -> None:
     write_state_file(StateKeys.error_for(state_key), message)
 
 
-# --- Infra lock (single-process re-entry guard) -------------------------------
+# --- Infra lock ---------------------------------------------------------------
 
 
-_lock: FileLock | None = None
-_lock_held = False
+class InfraLockError(Exception):
+    """Raised when the cross-process infrastructure lock cannot be acquired."""
 
 
-def acquire_infra_lock() -> bool:
+@contextmanager
+def infra_lock() -> Iterator[None]:
     """Try to take the cross-process infra lock without blocking.
 
-    Returns ``False`` if this process already holds it (re-entry) or another
-    process holds it. ``True`` on first successful acquisition.
+    Yields on first successful acquisition and releases the lock on context
+    exit. Raises :class:`InfraLockError` if another process already holds
+    the lock.
     """
-    global _lock, _lock_held
-    if _lock_held:
-        return False
-    _lock = FileLock(str(get_state_dir() / "infra.lock"), timeout=0)
+    lock = FileLock(str(get_state_dir() / "infra.lock"), timeout=0)
     try:
-        _lock.acquire(timeout=0)
-    except Timeout:
-        return False
-    _lock_held = True
-    return True
-
-
-def release_infra_lock() -> None:
-    """Release the cross-process infra lock; idempotent."""
-    global _lock, _lock_held
-    if _lock is not None:
+        lock.acquire(timeout=0)
+    except Timeout as exc:
+        raise InfraLockError(
+            "Another process already holds the infrastructure lock. "
+            "This should not happen under normal xdist operation."
+        ) from exc
+    try:
+        yield
+    finally:
         with contextlib.suppress(Exception):
-            _lock.release()
-    _lock = None
-    _lock_held = False
+            lock.release()
 
 
 # --- Worker-done coordination -------------------------------------------------

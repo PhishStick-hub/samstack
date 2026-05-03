@@ -18,9 +18,8 @@ from samstack._process import stream_logs_to_file
 from samstack._xdist import (
     Role,
     StateKeys,
-    acquire_infra_lock,
     get_worker_id,
-    release_infra_lock,
+    infra_lock,
     wait_for_state_key,
     wait_for_workers_done,
     worker_role,
@@ -141,34 +140,28 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
 
     # === Master / controller path: create Docker infrastructure ===
     if role is Role.CONTROLLER:
-        if not acquire_infra_lock():
-            pytest.fail(
-                "gw0 failed to acquire infrastructure lock — "
-                "another process may already hold it. "
-                "This should not happen under normal xdist operation."
-            )
-        try:
-            network = _create_and_register_network(docker_network_name)
-            write_state_file(StateKeys.DOCKER_NETWORK, docker_network_name)
-        except Exception:
-            write_error_for(
-                StateKeys.DOCKER_NETWORK,
-                f"Docker network creation failed: {docker_network_name}",
-            )
-            release_infra_lock()
-            raise
-    else:
-        # MASTER (no xdist) — existing behavior, no state file needed
-        network = _create_and_register_network(docker_network_name)
+        with infra_lock():
+            try:
+                network = _create_and_register_network(docker_network_name)
+                write_state_file(StateKeys.DOCKER_NETWORK, docker_network_name)
+            except Exception:
+                write_error_for(
+                    StateKeys.DOCKER_NETWORK,
+                    f"Docker network creation failed: {docker_network_name}",
+                )
+                raise
+            try:
+                yield docker_network_name
+            finally:
+                _teardown_network(network, docker_network_name)
+        return
 
+    # MASTER (no xdist) — existing behavior, no state file needed
+    network = _create_and_register_network(docker_network_name)
     try:
         yield docker_network_name
     finally:
-        try:
-            _teardown_network(network, docker_network_name)
-        finally:
-            if role is Role.CONTROLLER:
-                release_infra_lock()
+        _teardown_network(network, docker_network_name)
 
 
 # — LocalStack container -------------------------------------------------------

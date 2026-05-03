@@ -40,10 +40,14 @@ def test_write_preserves_existing_keys(
     assert result["key_b"] == "value_b"
 
 
-def test_session_uuid_cached() -> None:
+def test_session_uuid_stable_under_xdist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When PYTEST_XDIST_TESTRUNUID is set, successive calls return the same id."""
+    monkeypatch.setenv("PYTEST_XDIST_TESTRUNUID", "abcd1234efgh5678")
     a = get_session_uuid()
     b = get_session_uuid()
-    assert a == b
+    assert a == b == "abcd1234"
     # Must be 8 hex chars
     assert len(a) == 8
     assert all(c in "0123456789abcdef" for c in a)
@@ -53,11 +57,11 @@ def test_state_dir_uses_uuid(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     import tempfile
 
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
-    # Reset cached uuid so we get a fresh one tied to our tmp_path
-    monkeypatch.setattr("samstack._xdist._session_uuid", None)
+    monkeypatch.setenv("PYTEST_XDIST_TESTRUNUID", "deadbeefcafe1234")
     d = get_state_dir()
     assert d.name.startswith("samstack-")
     uuid_part = d.name[len("samstack-") :]
+    assert uuid_part == "deadbeef"
     assert len(uuid_part) == 8
     assert all(c in "0123456789abcdef" for c in uuid_part)
 

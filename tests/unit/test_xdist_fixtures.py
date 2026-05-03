@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,6 +18,42 @@ _docker_network_name: Callable[[pytest.FixtureRequest], str] = getattr(
 _docker_network_gen: Callable[[str], Generator[str, None, None]] = getattr(
     loc.docker_network, "__wrapped__"
 )
+
+
+def _fake_lock_always_acquired():
+    @contextmanager
+    def _cm():
+        yield
+
+    return _cm
+
+
+def _make_infra_lock_cm(acquire_spy=None, release_spy=None):
+    @contextmanager
+    def _cm():
+        if acquire_spy:
+            acquire_spy()
+        try:
+            yield
+        finally:
+            if release_spy:
+                release_spy()
+
+    return _cm
+
+
+def _make_infra_lock_cm(acquire_spy=None, release_spy=None):
+    @contextmanager
+    def _cm():
+        if acquire_spy:
+            acquire_spy()
+        try:
+            yield True
+        finally:
+            if release_spy:
+                release_spy()
+
+    return _cm
 
 
 # ---------------------------------------------------------------------------
@@ -154,10 +191,9 @@ class TestDockerNetworkGw0:
         mock_client.networks.create.return_value = mock_network
         monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: mock_client)
 
-        monkeypatch.setattr(loc, "acquire_infra_lock", lambda: True)
+        monkeypatch.setattr(loc, "infra_lock", _fake_lock_always_acquired())
         write_spy = MagicMock()
         monkeypatch.setattr(loc, "write_state_file", write_spy)
-        monkeypatch.setattr(loc, "release_infra_lock", MagicMock())
 
         gen = _docker_network_gen("samstack-gw0")
         next(gen)
@@ -181,10 +217,11 @@ class TestDockerNetworkGw0:
         mock_client.networks.create.return_value = mock_network
         monkeypatch.setattr(loc.docker_sdk, "from_env", lambda: mock_client)
 
-        lock_acquire_spy = MagicMock(return_value=True)
+        lock_acquire_spy = MagicMock()
         lock_release_spy = MagicMock()
-        monkeypatch.setattr(loc, "acquire_infra_lock", lock_acquire_spy)
-        monkeypatch.setattr(loc, "release_infra_lock", lock_release_spy)
+        monkeypatch.setattr(
+            loc, "infra_lock", _make_infra_lock_cm(lock_acquire_spy, lock_release_spy)
+        )
         monkeypatch.setattr(loc, "write_state_file", MagicMock())
         monkeypatch.setattr(loc, "_teardown_network", MagicMock())
         # Controller path waits for workers before teardown; stub it out so
@@ -205,12 +242,11 @@ class TestDockerNetworkGw0:
     def test_writes_error_on_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """gw0 writes error key to state on network creation failure, re-raises."""
         monkeypatch.setattr(loc, "worker_role", lambda: Role.CONTROLLER)
-        monkeypatch.setattr(loc, "acquire_infra_lock", lambda: True)
+        monkeypatch.setattr(loc, "infra_lock", _fake_lock_always_acquired())
 
         error_spy = MagicMock()
         monkeypatch.setattr(loc, "write_error_for", error_spy)
         monkeypatch.setattr(loc, "write_state_file", MagicMock())
-        monkeypatch.setattr(loc, "release_infra_lock", MagicMock())
 
         # Make _create_and_register_network fail
         monkeypatch.setattr(
@@ -271,8 +307,6 @@ class TestDockerNetworkGw1:
 
         teardown_spy = MagicMock()
         monkeypatch.setattr(loc, "_teardown_network", teardown_spy)
-        lock_release_spy = MagicMock()
-        monkeypatch.setattr(loc, "release_infra_lock", lock_release_spy)
         write_spy = MagicMock()
         monkeypatch.setattr(loc, "write_state_file", write_spy)
 
@@ -284,7 +318,6 @@ class TestDockerNetworkGw1:
         gen.close()
 
         teardown_spy.assert_not_called()
-        lock_release_spy.assert_not_called()
         # Worker now signals completion so the controller can safely tear
         # down shared infra (LocalStack, sam_api, sam_lambda_endpoint).
         write_spy.assert_called_once_with(StateKeys.worker_done("gw1"), True)
