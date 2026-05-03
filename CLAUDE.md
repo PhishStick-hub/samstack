@@ -28,7 +28,13 @@ uv run ty check
 uv run ruff check . && uv run ruff format --check . && uv run ty check
 
 # Unit tests only (no Docker required)
-uv run pytest tests/unit/ tests/test_settings.py tests/test_process.py tests/test_errors.py tests/test_plugin.py -v
+uv run pytest -m unit -v
+
+# Run a specific scope (unit | integration | crash | warm | multi | xdist | xdist_crash)
+uv run pytest tests/ -m integration -v --timeout=600       # core integration tests
+uv run pytest tests/warm/ -m warm -v --timeout=300         # isolated — must pass explicit path
+uv run pytest tests/multi_lambda/ -m multi -v --timeout=300
+uv run pytest tests/xdist/ -m xdist -v -n 2 --timeout=300
 
 # Single test
 uv run pytest tests/test_settings.py::test_defaults_applied -v

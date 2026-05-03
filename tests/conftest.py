@@ -16,6 +16,35 @@ from samstack.settings import SamStackSettings
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "hello_world"
 INTEGRATION_BUCKET = "samstack-integration-test"
 
+_UNIT_FILES = frozenset(
+    {"test_settings.py", "test_process.py", "test_errors.py", "test_plugin.py"}
+)
+_CRASH_FILES = frozenset(
+    {"test_subcontainer_teardown.py", "test_ryuk_crash.py", "test_warm_crash.py"}
+)
+
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        parts = item.path.parts
+        name = item.path.name
+        if "unit" in parts or name in _UNIT_FILES:
+            item.add_marker(pytest.mark.unit)
+        elif "warm" in parts:
+            item.add_marker(pytest.mark.warm)
+        elif "multi_lambda" in parts:
+            item.add_marker(pytest.mark.multi)
+        elif "test_crash" in parts:
+            item.add_marker(pytest.mark.xdist_crash)
+        elif "xdist" in parts:
+            item.add_marker(pytest.mark.xdist)
+        elif name in _CRASH_FILES:
+            item.add_marker(pytest.mark.crash)
+        else:
+            item.add_marker(pytest.mark.integration)
+
+
 
 # multi_lambda/, warm/, and xdist/ each pin samstack_settings to a different
 # fixture project. Session-scoped SAM fixtures (sam_build, sam_api,
