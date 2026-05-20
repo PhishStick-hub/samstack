@@ -7,7 +7,7 @@ import pytest
 
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamBuildError
-from samstack._process import run_one_shot_container
+from samstack._docker import run_one_shot_container
 from samstack.fixtures._sam_container import DOCKER_SOCKET, _is_ci
 from samstack.settings import SamStackSettings
 

@@ -132,4 +132,7 @@ def handler(event: dict[str, Any], _context: Any) -> Any:
 
     if queued is not None:
         return queued
-    return _DEFAULT_HTTP_RESPONSE if _is_http_event(event) else _DEFAULT_INVOKE_RESPONSE
+    default = (
+        _DEFAULT_HTTP_RESPONSE if _is_http_event(event) else _DEFAULT_INVOKE_RESPONSE
+    )
+    return dict(default)
