@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal
 
 import boto3
@@ -14,7 +13,6 @@ if TYPE_CHECKING:
 
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamStartupError
-from samstack._xdist import StateKeys, xdist_shared_session
 from samstack.fixtures._sam_container import _run_sam_service
 from samstack.settings import SamStackSettings
 
@@ -96,38 +94,24 @@ def sam_lambda_endpoint(
     sam_lambda_extra_args: list[str],
     warm_functions: list[str],
 ) -> Iterator[str]:
-    """Start `sam local start-lambda` in Docker. Yields endpoint URL http://127.0.0.1:{lambda_port}.
-
-    Under xdist: gw0 starts the container and writes the endpoint to shared state;
-    gw1+ workers poll for the endpoint and yield it without any Docker calls.
+    """
+    Start `sam local start-lambda` in Docker. Yields the endpoint URL
+    http://127.0.0.1:{lambda_port} for use with boto3 Lambda client.
     Logs written to {log_dir}/start-lambda.log.
     """
-
-    @contextmanager
-    def _on_controller() -> Iterator[tuple[str, str]]:
-        with _run_sam_service(
-            settings=samstack_settings,
-            docker_network=docker_network,
-            subcommand="start-lambda",
-            port=samstack_settings.lambda_port,
-            warm_containers=_warm_containers_mode(warm_functions),
-            settings_extra_args=samstack_settings.start_lambda_args,
-            fixture_extra_args=sam_lambda_extra_args,
-            log_filename="start-lambda.log",
-            wait_mode="port",
-            network_alias="sam-lambda",
-        ) as endpoint:
-            _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
-            # state_value == user_resource == the endpoint URL.
-            yield endpoint, endpoint
-
-    with xdist_shared_session(
-        StateKeys.SAM_LAMBDA_ENDPOINT,
-        on_controller=_on_controller,
-        error_prefix="sam_lambda_endpoint container failed to start",
-        wait_for_workers_on_teardown=True,
-        timeout=600,
+    with _run_sam_service(
+        settings=samstack_settings,
+        docker_network=docker_network,
+        subcommand="start-lambda",
+        port=samstack_settings.lambda_port,
+        warm_containers=_warm_containers_mode(warm_functions),
+        settings_extra_args=samstack_settings.start_lambda_args,
+        fixture_extra_args=sam_lambda_extra_args,
+        log_filename="start-lambda.log",
+        wait_mode="port",
+        network_alias="sam-lambda",
     ) as endpoint:
+        _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
         yield endpoint
 
 

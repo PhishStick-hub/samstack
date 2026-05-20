@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Planning and project files
+.planning/
+
 # Logs
 logs/
 *.log
@@ -16,4 +19,3 @@ logs/
 # SAM build artifacts and config
 .aws-sam/
 samconfig.toml
-.planning/
