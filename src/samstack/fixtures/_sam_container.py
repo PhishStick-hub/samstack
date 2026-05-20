@@ -5,6 +5,7 @@ import platform
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Literal
 
 import docker as docker_sdk
@@ -20,6 +21,20 @@ DOCKER_SOCKET = "/var/run/docker.sock"
 def _is_ci() -> bool:
     """Return True when running inside a CI environment (GitHub Actions, GitLab CI, etc.)."""
     return bool(os.environ.get("CI"))
+
+
+@dataclass(frozen=True)
+class SamServiceConfig:
+    """Immutable configuration for a SAM local service (start-api or start-lambda)."""
+
+    subcommand: Literal["start-api", "start-lambda"]
+    port: int
+    warm_containers: Literal["LAZY", "EAGER"]
+    settings_extra_args: list[str]
+    fixture_extra_args: list[str]
+    log_filename: str
+    wait_mode: Literal["http", "port"]
+    network_alias: str
 
 
 def _extra_hosts() -> dict[str, str]:
@@ -149,6 +164,33 @@ def _run_sam_service(
                     stacklevel=2,
                 )
         container.stop()
+
+
+@contextmanager
+def start_sam(
+    settings: SamStackSettings,
+    docker_network: str,
+    config: SamServiceConfig,
+) -> Iterator[str]:
+    """Start a SAM local service and yield its endpoint URL.
+
+    Thin wrapper around _run_sam_service that accepts a SamServiceConfig
+    instead of individual parameters — eliminates parameter-mapping
+    duplication in sam_api.py and sam_lambda.py.
+    """
+    with _run_sam_service(
+        settings=settings,
+        docker_network=docker_network,
+        subcommand=config.subcommand,
+        port=config.port,
+        warm_containers=config.warm_containers,
+        settings_extra_args=config.settings_extra_args,
+        fixture_extra_args=config.fixture_extra_args,
+        log_filename=config.log_filename,
+        wait_mode=config.wait_mode,
+        network_alias=config.network_alias,
+    ) as endpoint:
+        yield endpoint
 
 
 def create_sam_container(

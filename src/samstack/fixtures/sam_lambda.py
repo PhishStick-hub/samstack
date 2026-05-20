@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
 from samstack._errors import SamStartupError
-from samstack.fixtures._sam_container import _run_sam_service
+from samstack.fixtures._sam_container import SamServiceConfig, start_sam
 from samstack.settings import SamStackSettings
 
 _logger = logging.getLogger("samstack")
@@ -99,9 +99,7 @@ def sam_lambda_endpoint(
     http://127.0.0.1:{lambda_port} for use with boto3 Lambda client.
     Logs written to {log_dir}/start-lambda.log.
     """
-    with _run_sam_service(
-        settings=samstack_settings,
-        docker_network=docker_network,
+    config = SamServiceConfig(
         subcommand="start-lambda",
         port=samstack_settings.lambda_port,
         warm_containers=_warm_containers_mode(warm_functions),
@@ -110,7 +108,8 @@ def sam_lambda_endpoint(
         log_filename="start-lambda.log",
         wait_mode="port",
         network_alias="sam-lambda",
-    ) as endpoint:
+    )
+    with start_sam(samstack_settings, docker_network, config) as endpoint:
         _pre_warm_functions(endpoint, warm_functions, samstack_settings.region)
         yield endpoint
 
