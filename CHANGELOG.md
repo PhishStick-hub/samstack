@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/PhishStick-hub/samstack/compare/v2.3.0...v2.3.1) (2026-05-20)
+
+
+### Reverts
+
+* undo release v2.3.0 — logic is too complex ([b97dc6c](https://github.com/PhishStick-hub/samstack/commit/b97dc6c8a80937994e6885c1ed60f01122cd5bfd))
+
 ## [2.2.0](https://github.com/PhishStick-hub/samstack/compare/v2.1.0...v2.2.0) (2026-04-26)
 
 
