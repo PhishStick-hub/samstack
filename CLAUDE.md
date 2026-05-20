@@ -174,13 +174,16 @@ User pattern: session fixture calls `make_lambda_mock(...)`, function-scoped wra
 - `wait_for_port` — TCP probe loop; raises `SamStartupError` with log tail on timeout
 - `wait_for_http` — HTTP probe loop (any HTTP response = ready); used by `sam_api` because Docker Desktop's port forwarder accepts TCP before Flask starts, making a TCP-only probe succeed too early
 - `stream_logs_to_file(container, log_path)` — daemon thread streaming container logs; accepts a Docker SDK container object (not an ID string)
-- `run_one_shot_container` — runs a container to completion (used for `sam build`), returns `(logs, exit_code)`
+
+### `_docker.py` utilities
+
+- `run_one_shot_container` — runs a container to completion (used for `sam build`), returns `(logs, exit_code)`; imports Docker SDK at module level
 
 `fixtures/_sam_container.py` — shared helpers for `sam_api` and `sam_lambda`: `build_sam_args()` (CLI arg list), `create_sam_container()` (container builder — intentionally does **not** pre-attach to `docker_network`; caller attaches with an alias after `.start()`), `_connect_container_with_alias()` / `_disconnect_container_from_network()` (network alias wiring — `localstack.py` imports these; they are the single source of truth for container network management), `_run_sam_service()` (context manager — starts container, attaches with alias, streams logs, waits for readiness, yields endpoint URL, disconnects + stops on exit), `DOCKER_SOCKET` constant. The `network_alias` parameter is mandatory on `_run_sam_service` — pass `"sam-api"` or `"sam-lambda"` to match the convention other containers rely on.
 
 `_constants.py` — internal constants shared across fixtures: `LOCALSTACK_ACCESS_KEY` / `LOCALSTACK_SECRET_KEY` (both `"test"` — LocalStack's documented default). Import from here; do not re-define per-module.
 
-Docker SDK (`import docker`) is imported lazily in `run_one_shot_container` to avoid import-time failures if Docker is not available.
+Docker SDK is imported at module level in `_docker.py` (the dedicated Docker utilities module).
 
 ### Architecture and cross-platform support
 
