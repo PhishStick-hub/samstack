@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.0.0](https://github.com/PhishStick-hub/samstack/compare/v2.3.0...v3.0.0) (2026-05-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **fixtures:** _run_sam_service (internal, never exported) removed. Sam_api and sam_lambda_endpoint public fixture signatures preserved.
+
+### Features
+
+* **fixtures:** deduplicate sam_api/sam_lambda with SamServiceConfig + start_sam() ([#29](https://github.com/PhishStick-hub/samstack/issues/29)) ([600387b](https://github.com/PhishStick-hub/samstack/commit/600387bcd62651224074e31a956cc7ed93dd63ef))
+
+
+### Reverts
+
+* undo release v2.3.0 — logic is too complex ([b97dc6c](https://github.com/PhishStick-hub/samstack/commit/b97dc6c8a80937994e6885c1ed60f01122cd5bfd))
+
 ## [2.2.0](https://github.com/PhishStick-hub/samstack/compare/v2.1.0...v2.2.0) (2026-04-26)
 
 
