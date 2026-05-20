@@ -8,7 +8,7 @@ from collections.abc import Iterator
 import pytest
 
 from samstack._errors import SamStartupError
-from samstack.fixtures._sam_container import _run_sam_service
+from samstack.fixtures._sam_container import SamServiceConfig, start_sam
 from samstack.settings import SamStackSettings
 
 _logger = logging.getLogger("samstack")
@@ -97,9 +97,7 @@ def sam_api(
     Start `sam local start-api` in Docker. Yields base URL http://127.0.0.1:{api_port}.
     Logs written to {log_dir}/start-api.log.
     """
-    with _run_sam_service(
-        settings=samstack_settings,
-        docker_network=docker_network,
+    config = SamServiceConfig(
         subcommand="start-api",
         port=samstack_settings.api_port,
         warm_containers="LAZY",
@@ -108,7 +106,8 @@ def sam_api(
         log_filename="start-api.log",
         wait_mode="http",
         network_alias="sam-api",
-    ) as endpoint:
+    )
+    with start_sam(samstack_settings, docker_network, config) as endpoint:
         _pre_warm_api_routes(
             endpoint,
             _filter_warm_routes(warm_api_routes, warm_functions),
