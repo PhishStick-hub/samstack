@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "samstack"
-version = "2.3.0"
+version = "2.2.0"
 description = "Pytest fixtures for testing AWS SAM Lambdas locally with LocalStack"
 readme = "README.md"
 authors = [
@@ -27,7 +27,6 @@ dependencies = [
     "testcontainers[localstack]>=4.10.0",
     "docker>=7.0.0",
     "boto3>=1.35.0",
-    "filelock>=3.13",
     "pytest>=8.0.0",
 ]
 
@@ -46,15 +45,6 @@ packages = ["src/samstack"]
 filterwarnings = [
     "ignore::DeprecationWarning:testcontainers.*",
 ]
-markers = [
-    "unit: no Docker required — settings, process helpers, error types, plugin discovery",
-    "integration: requires Docker + SAM + LocalStack; hello_world fixture; run with -n 4",
-    "crash: Ryuk teardown and crash-recovery scenarios; sequential, may be skipped on macOS",
-    "warm: warm-container verification; warm_check fixture; isolated session, run with -n 2",
-    "multi: multi-Lambda mock flow; multi_lambda fixture; isolated session, sequential",
-    "xdist: xdist parallel-execution self-tests; isolated session, run with -n 2",
-    "xdist_crash: xdist crash tests expecting container startup failure; continue_on_error",
-]
 
 [dependency-groups]
 dev = [
@@ -64,5 +54,4 @@ dev = [
     "ruff>=0.15.2",
     "ty>=0.0.18",
     "pytest-timeout>=2.4.0",
-    "pytest-xdist>=3.8.0",
 ]

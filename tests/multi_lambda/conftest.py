@@ -38,16 +38,6 @@ def sam_env_vars(sam_env_vars: dict[str, dict[str, str]]) -> dict[str, dict[str,
     return sam_env_vars
 
 
-@pytest.fixture(scope="session")
-def warm_functions() -> list[str]:
-    return ["LambdaAFunction", "MockBFunction"]
-
-
-@pytest.fixture(scope="session")
-def warm_api_routes() -> dict[str, str]:
-    return {"LambdaAFunction": "/lambda-a/http"}
-
-
 @pytest.fixture(scope="session", autouse=True)
 def _mock_b_session(
     make_lambda_mock: Callable[..., LambdaMock],
