@@ -91,7 +91,7 @@ jobs:
             --cov-branch
 
       - name: Enforce coverage gate
-        run: coverage report --fail-under=50
+        run: uv run coverage report --fail-under=50
 
   build:
     name: Build Package
