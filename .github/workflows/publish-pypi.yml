@@ -20,7 +20,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     permissions:
-      contents: write
+      contents: read
+      actions: read
     environment:
       name: pypi
       url: https://pypi.org/project/samstack/
@@ -45,20 +46,23 @@ jobs:
           echo "No release tag after 2 min — skipping publish"
           echo "SKIP_PUBLISH=true" >> "$GITHUB_ENV"
 
-      - name: Install uv
-        if: env.SKIP_PUBLISH != 'true'
+      - name: Download built package (workflow_run)
+        if: github.event_name == 'workflow_run' && env.SKIP_PUBLISH != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
 
-      - name: Set up Python
-        if: env.SKIP_PUBLISH != 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Build package
-        if: env.SKIP_PUBLISH != 'true'
+      - name: Build package (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         run: uv build
 
       - name: Publish to PyPI
