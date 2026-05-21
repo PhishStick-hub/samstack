@@ -194,3 +194,24 @@ On Linux, `host.docker.internal` is not available by default. The fixtures add `
 ### Lambda container cleanup
 
 SAM creates Lambda runtime containers (via the Docker socket) on `docker_network`. These are automatically tracked and cleaned up by testcontainers/Ryuk via the `LABEL_SESSION_ID` label. The `docker_network` fixture registers itself with Ryuk on creation, ensuring all containers are cleaned up when the session ends — both on normal teardown and on test crashes.
+
+## Git / PR conventions
+
+### Conventional commits
+
+This project uses [release-please](https://github.com/googleapis/release-please-action) for automated versioning. Release-please looks at commits on `main` to determine version bumps:
+
+- `feat:` / `feat(scope):` → **minor** bump (e.g., 3.0.0 → 3.1.0)
+- `fix:` / `fix(scope):` → **patch** bump (e.g., 3.0.0 → 3.0.1)
+- `feat!:` / `fix!:` / `BREAKING CHANGE:` → **major** bump
+- `ci:`, `chore:`, `docs:`, `style:`, `refactor:`, `test:`, `build:` → **no bump** (shown in changelog sections only when configured in `.release-please-config.json`)
+
+### PR title = merge commit message
+
+When a PR is merged with the default **merge commit** strategy, the only commit that lands on `main` is the merge commit — its message is the **PR title**. Release-please sees this, not the individual branch commits. **PR titles must use a release-triggering prefix** (`feat:` or `fix:`) if the change should produce a release.
+
+Example:
+- Good: `feat(ci): share build artifact between CI and publish`
+- Bad: `ci: optimize CI/CD pipeline` (release-please skips `ci:`, no release PR created)
+
+If using **squash merge**, set the squash message to a conventional commit format. If using **rebase merge**, each commit lands on `main` individually and must follow conventional commit format.
