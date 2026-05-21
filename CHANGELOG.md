@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.2](https://github.com/PhishStick-hub/samstack/compare/v3.1.1...v3.1.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **ci:** add always() to publish job condition ([ac8ad22](https://github.com/PhishStick-hub/samstack/commit/ac8ad228b320f28a6e690f7363046f4d0b35e54e))
+* **ci:** guard needs.check-tag.outputs access behind result check ([559ae50](https://github.com/PhishStick-hub/samstack/commit/559ae50cbef558dfe0835a76e45c333d9bd11afc))
+
 ## [3.1.1](https://github.com/PhishStick-hub/samstack/compare/v3.1.0...v3.1.1) (2026-05-21)
 
 
