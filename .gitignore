@@ -19,3 +19,7 @@ logs/
 # SAM build artifacts and config
 .aws-sam/
 samconfig.toml
+
+# Coverage
+.coverage
+htmlcov/
