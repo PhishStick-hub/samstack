@@ -48,7 +48,7 @@ jobs:
     needs: [check-tag]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.check-tag.outputs.has_tag == 'true'
+      (needs.check-tag.result == 'success' && needs.check-tag.outputs.has_tag == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
