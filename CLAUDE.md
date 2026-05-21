@@ -215,3 +215,22 @@ Example:
 - Bad: `ci: optimize CI/CD pipeline` (release-please skips `ci:`, no release PR created)
 
 If using **squash merge**, set the squash message to a conventional commit format. If using **rebase merge**, each commit lands on `main` individually and must follow conventional commit format.
+
+### Branch protection check names
+
+Branch protection on `main` requires specific status checks before merging. These names must match the **GitHub UI check name** (not the `name:` field in the workflow file). The check name format for reusable workflows is `<caller_job> / <called_job>`.
+
+Current required checks:
+- `ci / Quality Checks`
+- `ci / Coverage Gate (≥50%)`
+- `ci / Build Package`
+- `update-lockfile`
+
+**When changing, adding, or removing jobs in `_ci.yml`**, update the branch protection rules to match. Use:
+```bash
+gh api /repos/PhishStick-hub/samstack/branches/main/protection/required_status_checks --method PATCH -f 'contexts[]=<check-name>' ...
+```
+
+### Lockfile workflow uses PAT for CI chaining
+
+`lockfile.yml` pushes commits using `secrets.RELEASE_PLEASE_TOKEN` (a PAT) instead of `secrets.GITHUB_TOKEN`. This is required because `GITHUB_TOKEN` pushes do not trigger new workflows — a lockfile commit would leave the PR without CI checks. A PAT push chains workflows normally.
