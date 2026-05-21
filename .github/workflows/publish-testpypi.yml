@@ -9,8 +9,6 @@ on:
 jobs:
   ci:
     uses: ./.github/workflows/_ci.yml
-    with:
-      run-build: true
 
   publish:
     name: Build and Publish to TestPyPI

@@ -8,12 +8,6 @@ on:
         required: false
         type: string
         default: ''
-      run-build:
-        description: 'Whether to run the build job'
-        required: false
-        type: boolean
-        default: false
-
 jobs:
   quality-checks:
     name: Quality Checks
@@ -160,29 +154,3 @@ jobs:
       - name: Run warm integration tests
         run: uv run pytest tests/warm/ -v --timeout=300
 
-  build:
-    name: Build Package
-    if: ${{ inputs.run-build }}
-    runs-on: ubuntu-latest
-    needs: [quality-checks, unit-tests, integration-tests]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: uv sync --all-groups
-
-      - name: Build package
-        run: uv build
