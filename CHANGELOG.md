@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/PhishStick-hub/samstack/compare/v3.1.0...v3.1.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **ci:** fetch tags in check-tag job, remove 2-min retry loop ([66dadae](https://github.com/PhishStick-hub/samstack/commit/66dadae17cffd49248b189cd7256eadfb261859f))
+
 ## [3.1.0](https://github.com/PhishStick-hub/samstack/compare/v3.0.0...v3.1.0) (2026-05-21)
 
 
