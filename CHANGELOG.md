@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.1.0](https://github.com/PhishStick-hub/samstack/compare/v3.0.0...v3.1.0) (2026-05-21)
+
+
+### Features
+
+* **ci:** add release-please config with changelog sections for all commit types ([7fbd127](https://github.com/PhishStick-hub/samstack/commit/7fbd12765d353cefe48559ea23ae0a9d828170b6))
+
+
+### Bug Fixes
+
+* **ci:** split publish into check-tag + publish jobs to avoid approval noise ([6bd01cb](https://github.com/PhishStick-hub/samstack/commit/6bd01cbfb48528a866a3bbe38529d0f83453bf6d))
+* **ci:** use PAT in lockfile workflow to enable CI chaining ([1a87c08](https://github.com/PhishStick-hub/samstack/commit/1a87c080c9f6aea20fd0308f34533e221def9b3b))
+
+
+### Documentation
+
+* document PR title conventions for release-please ([9778fbe](https://github.com/PhishStick-hub/samstack/commit/9778fbe4e1f3cc8acd904e788887c26b7e27c1f9))
+
 ## [3.0.0](https://github.com/PhishStick-hub/samstack/compare/v2.3.0...v3.0.0) (2026-05-20)
 
 
