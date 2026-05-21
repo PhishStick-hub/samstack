@@ -12,6 +12,12 @@ wheels/
 # Planning and project files
 .planning/
 
+# Claude Code config
+.claude/
+
+# Review artifacts
+REVIEW.md
+
 # Logs
 logs/
 *.log
@@ -19,3 +25,7 @@ logs/
 # SAM build artifacts and config
 .aws-sam/
 samconfig.toml
+
+# Coverage
+.coverage
+htmlcov/

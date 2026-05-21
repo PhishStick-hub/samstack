@@ -9,14 +9,12 @@ on:
 jobs:
   ci:
     uses: ./.github/workflows/_ci.yml
-    with:
-      run-build: true
 
   publish:
     name: Build and Publish to TestPyPI
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [ci]
-    if: needs.ci.result == 'success'
     environment:
       name: testpypi
       url: https://test.pypi.org/project/samstack/
@@ -31,19 +29,11 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: uv sync --all-groups
-
       - name: Set dev version
         run: |
           BASE=$(grep -Po 'version = "\K[^"]*' pyproject.toml)
-          N=$(git rev-list HEAD --count)
-          DEV_VERSION="${BASE}.dev${N}"
+          TS=$(date -u +%Y%m%d%H%M%S)
+          DEV_VERSION="${BASE}.dev${TS}"
           sed -i "s/version = \"${BASE}\"/version = \"${DEV_VERSION}\"/" pyproject.toml
           echo "DEV_VERSION=${DEV_VERSION}" >> $GITHUB_ENV
           echo "Building version: ${DEV_VERSION}"
