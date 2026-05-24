@@ -203,8 +203,8 @@ When you're satisfied, open a PR from your `release/**` branch to `main` as norm
                     ┌─────────────────────────────────┐
   Push to           │  ci.yml (4 sequential jobs)      │
   main / PR ──────► │  ├── Quality Checks              │
-                    │  ├── Coverage Gate (>=50%)        │
-                    │  ├── Integration Tests            │
+                    │  ├── Unit Tests                   │
+                    │  ├── Integration + Coverage       │
                     │  └── Build Package                │
                     └─────────────────────────────────┘
 

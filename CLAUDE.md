@@ -222,8 +222,8 @@ Branch protection on `main` requires specific status checks before merging. Thes
 
 Current required checks:
 - `CI / Quality Checks`
-- `CI / Coverage Gate (>=50%)`
-- `CI / Integration Tests`
+- `CI / Unit Tests`
+- `CI / Integration + Coverage (>=50%)`
 - `CI / Build Package`
 - `update-lockfile`
 
