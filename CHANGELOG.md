@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.2.0](https://github.com/PhishStick-hub/samstack/compare/v3.1.2...v3.2.0) (2026-05-24)
+
+
+### Features
+
+* **ci:** rebuild CI/CD pipeline from scratch ([f751259](https://github.com/PhishStick-hub/samstack/commit/f751259fdc3b1189e8d420329db27d87edd6b1c1))
+
+
+### Bug Fixes
+
+* **ci:** move coverage gate to integration job (unit tests alone cover 25%) ([77fcde6](https://github.com/PhishStick-hub/samstack/commit/77fcde62f59378e375df066602aabd79a56836e5))
+* **ci:** run coverage report before separate test suites ([433d2a7](https://github.com/PhishStick-hub/samstack/commit/433d2a70db4e64ad7a91f79ce3f97b3c19bee57e))
+* **ci:** use --cov-append to accumulate coverage across test suites ([d1939f2](https://github.com/PhishStick-hub/samstack/commit/d1939f2bd9dccc24eda3a8027b62cc6a9d5f28b3))
+* **ci:** use setup-uv@v7 (v8 major tag does not exist) ([f066afd](https://github.com/PhishStick-hub/samstack/commit/f066afdb23954ef930bc547a357753aa56c804b4))
+
 ## [3.1.2](https://github.com/PhishStick-hub/samstack/compare/v3.1.1...v3.1.2) (2026-05-21)
 
 
