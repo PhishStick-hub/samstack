@@ -8,11 +8,65 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
-    uses: ./.github/workflows/_ci.yml
-    with:
-      ref: ${{ github.sha }}
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run ty check
+
+  unit-coverage:
+    name: Coverage Gate (>=50%)
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync
+      - run: uv run pytest tests/unit/ tests/test_settings.py tests/test_process.py tests/test_errors.py tests/test_plugin.py -v
+      - run: uv run coverage report --fail-under=50
+
+  integration:
+    name: Integration Tests
+    needs: unit-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync
+      - run: uv run pytest tests/ -v --timeout=300
+      - run: uv run pytest tests/multi_lambda/ -v --timeout=300
+      - run: uv run pytest tests/warm/ -v --timeout=300
+
+  build:
+    name: Build Package
+    needs: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/

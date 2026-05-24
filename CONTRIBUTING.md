@@ -191,32 +191,32 @@ When you're satisfied, open a PR from your `release/**` branch to `main` as norm
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | Push to `main`, PRs to `main` | Quality checks + tests |
+| `ci.yml` | Push to `main`, PRs to `main` | Quality → unit-coverage → integration → build |
 | `publish-testpypi.yml` | Push to `release/**` | Publish dev build to TestPyPI |
-| `publish-pypi.yml` | Tag `v[0-9]*.[0-9]*.[0-9]*` | Publish stable release to PyPI |
-| `release-please.yml` | Push to `main` | Auto-open Release PR, create tag on merge |
+| `publish-pypi.yml` | GitHub Release published | Publish stable release to PyPI |
+| `release-please.yml` | Push to `main` | Auto-open Release PR, create tag + Release on merge |
+| `lockfile.yml` | PR with `pyproject.toml` changes | Auto-update `uv.lock` |
 
 ### Pipeline Detail
 
 ```
                     ┌─────────────────────────────────┐
-  Push to           │  _ci.yml (reusable)              │
+  Push to           │  ci.yml (4 sequential jobs)      │
   main / PR ──────► │  ├── Quality Checks              │
-                    │  ├── Unit Tests                   │
+                    │  ├── Coverage Gate (>=50%)        │
                     │  ├── Integration Tests            │
-                    │  └── Build Package (if enabled)  │
+                    │  └── Build Package                │
                     └─────────────────────────────────┘
 
   Push to           ┌──────────────────────────────────────┐
   release/** ─────► │  publish-testpypi.yml                │
-                    │  ├── [ci] Quality + Unit + Integ      │
-                    │  └── [publish] Set dev version        │
-                    │       → uv build                      │
-                    │       → uv publish (TestPyPI)         │
+                    │  ├── Set dev version                  │
+                    │  ├── uv build                         │
+                    │  └── uv publish (TestPyPI)            │
                     └──────────────────────────────────────┘
 
                     ┌──────────────────────────────────────┐
-  Any push    ┌───► │  ci.yml  (quality + tests)           │
+  Any push    ┌───► │  ci.yml                              │
   to main ────┤     └──────────────────────────────────────┘
               │     ┌──────────────────────────────────────┐
               └───► │  release-please.yml                  │
@@ -225,24 +225,24 @@ When you're satisfied, open a PR from your `release/**` branch to `main` as norm
                     │  • on Release PR merge:               │
                     │    creates tag + GitHub Release       │
                     └──────────────┬───────────────────────┘
-                                   │ tag push (v*.*.*)
+                                   │ release published
                                    ▼
                     ┌──────────────────────────────────────┐
                     │  publish-pypi.yml                    │
-                    │  ├── [ci] Quality + Unit + Integ      │
-                    │  └── [publish] uv build               │
-                    │       → uv publish (PyPI)             │
+                    │  ├── uv build                         │
+                    │  └── uv publish (PyPI)                │
                     └──────────────────────────────────────┘
 ```
 
 > Every push to `main` always fires **both** `ci.yml` and `release-please.yml` in parallel.
 > This is expected — CI validates the code, Release Please tracks commits for the next release.
+> When a Release PR is merged, Release Please creates a GitHub Release, which triggers `publish-pypi.yml`.
 
 ### Version Strategy
 
 | Context | Version | Example |
 |---------|---------|---------|
-| Dev build on `release/**` | `{base}.dev{commit_count}` | `0.1.0.dev42` |
+| Dev build on `release/**` | `{base}.dev{YYYYMMDDHHmmss}` | `0.1.0.dev20260524123000` |
 | Stable release | Exact from `pyproject.toml` (set by Release Please) | `0.1.0` |
 
 The version in `pyproject.toml` is the source of truth. Release Please updates it

@@ -1,90 +1,31 @@
 name: Publish to PyPI
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to publish (e.g., v0.1.0)'
+        description: "Tag to publish (e.g. v1.0.0)"
         required: true
         type: string
 
 jobs:
-  check-tag:
-    name: Check for release tag
-    if: |
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      has_tag: ${{ steps.check.outputs.has_tag }}
-      tag: ${{ steps.check.outputs.tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-tags: true
-
-      - name: Check for release tag
-        id: check
-        run: |
-          TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
-          if [ -n "$TAG" ]; then
-            echo "Found release tag: $TAG"
-            echo "has_tag=true" >> "$GITHUB_OUTPUT"
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          else
-            echo "No release tag on this commit"
-            echo "has_tag=false" >> "$GITHUB_OUTPUT"
-          fi
-
   publish:
-    name: Build and Publish to Production PyPI
-    needs: [check-tag]
-    if: |
-      always() &&
-      (github.event_name == 'workflow_dispatch' ||
-       (needs.check-tag.result == 'success' && needs.check-tag.outputs.has_tag == 'true'))
+    name: Build and Publish
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
     environment:
       name: pypi
       url: https://pypi.org/project/samstack/
+    permissions:
+      id-token: write
     steps:
-      - name: Download built package (workflow_run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
         with:
-          name: dist
-          path: dist/
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout code (workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@v4
+          ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+      - uses: astral-sh/setup-uv@v8
         with:
-          ref: ${{ github.event.inputs.tag }}
-
-      - name: Install uv (workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        uses: astral-sh/setup-uv@v4
-        with:
+          python-version: "3.13"
           enable-cache: true
-
-      - name: Build package (workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        run: uv build
-
-      - name: Publish to PyPI
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish
+      - run: uv build
+      - run: uv publish

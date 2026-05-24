@@ -218,15 +218,16 @@ If using **squash merge**, set the squash message to a conventional commit forma
 
 ### Branch protection check names
 
-Branch protection on `main` requires specific status checks before merging. These names must match the **GitHub UI check name** (not the `name:` field in the workflow file). The check name format for reusable workflows is `<caller_job> / <called_job>`.
+Branch protection on `main` requires specific status checks before merging. These names must match the **GitHub UI check name** (matching `workflow_name / job_name`).
 
 Current required checks:
-- `ci / Quality Checks`
-- `ci / Coverage Gate (≥50%)`
-- `ci / Build Package`
+- `CI / Quality Checks`
+- `CI / Coverage Gate (>=50%)`
+- `CI / Integration Tests`
+- `CI / Build Package`
 - `update-lockfile`
 
-**When changing, adding, or removing jobs in `_ci.yml`**, update the branch protection rules to match. Use:
+**When changing, adding, or removing jobs in `ci.yml`**, update the branch protection rules to match. Use:
 ```bash
 gh api /repos/PhishStick-hub/samstack/branches/main/protection/required_status_checks --method PATCH -f 'contexts[]=<check-name>' ...
 ```
