@@ -51,9 +51,9 @@ jobs:
           enable-cache: true
       - run: uv sync
       - run: uv run pytest tests/ -v --timeout=300
+      - run: uv run pytest tests/multi_lambda/ -v --timeout=300 --cov-append
+      - run: uv run pytest tests/warm/ -v --timeout=300 --cov-append
       - run: uv run coverage report --fail-under=50
-      - run: uv run pytest tests/multi_lambda/ -v --timeout=300
-      - run: uv run pytest tests/warm/ -v --timeout=300
 
   build:
     name: Build Package
