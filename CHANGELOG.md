@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/PhishStick-hub/samstack/compare/v3.2.0...v3.2.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* **ci:** fix pypi publish ([6f18f0e](https://github.com/PhishStick-hub/samstack/commit/6f18f0e8ed03d9dfe4732641134d066356d10b4e))
+
 ## [3.2.0](https://github.com/PhishStick-hub/samstack/compare/v3.1.2...v3.2.0) (2026-05-24)
 
 
