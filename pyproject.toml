@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "samstack"
-version = "3.2.1"
+version = "4.0.0"
 description = "Pytest fixtures for testing AWS SAM Lambdas locally with Floci"
 readme = "README.md"
 authors = [

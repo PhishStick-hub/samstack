@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.0.0](https://github.com/PhishStick-hub/samstack/compare/v3.2.1...v4.0.0) (2026-06-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* migrate from LocalStack to Floci
+
+### Features
+
+* migrate from LocalStack to Floci ([cda116a](https://github.com/PhishStick-hub/samstack/commit/cda116ab91ef32255fb46b6c84daf0aecf740637))
+
+
+### Documentation
+
+* add AGENTS.md with project conventions and migration guide ([8955895](https://github.com/PhishStick-hub/samstack/commit/895589508ca63bc1869c15476fb39b1de941ecb7))
+* finish LocalStack to Floci migration in README and CLAUDE ([b6831ce](https://github.com/PhishStick-hub/samstack/commit/b6831cefa068f66e11c6ca3732abff89c3399db7))
+
 ## [3.2.1](https://github.com/PhishStick-hub/samstack/compare/v3.2.0...v3.2.1) (2026-05-27)
 
 
