@@ -1,6 +1,6 @@
 # samstack
 
-Pytest plugin that provides session-scoped fixtures for testing AWS Lambda functions locally. SAM CLI and Lambda containers run entirely inside Docker — no `sam` install required on the host. LocalStack provides the local AWS backend.
+Pytest plugin that provides session-scoped fixtures for testing AWS Lambda functions locally. SAM CLI and Lambda containers run entirely inside Docker — no `sam` install required on the host. Floci provides the local AWS backend.
 
 ## How it works
 
@@ -13,7 +13,7 @@ your test  ──►  sam_api / lambda_client
               └── sam local start-lambda (direct invoke)
                     │ creates Lambda runtime containers
                     ▼
-              Lambda containers  ──►  LocalStack (S3, DynamoDB, SQS …)
+               Lambda containers  ──►  Floci (S3, DynamoDB, SQS …)
 ```
 
 Everything runs on an isolated Docker bridge network created per test session. After the session, all containers and the network are cleaned up automatically.
@@ -114,18 +114,18 @@ All SAM fixtures are `scope="session"` — Docker containers start once and are 
 |---|---|---|
 | `sam_api` | `str` | Base URL of `sam local start-api`, e.g. `http://127.0.0.1:3000` |
 | `lambda_client` | `LambdaClient` | boto3 Lambda client pointing at `sam local start-lambda` |
-| `localstack_endpoint` | `str` | LocalStack base URL, e.g. `http://127.0.0.1:4566` |
+| `floci_endpoint` | `str` | Floci base URL, e.g. `http://127.0.0.1:4566` |
 | `sam_env_vars` | `dict` | Env vars injected into all Lambda functions at runtime |
 | `sam_build` | `None` | Runs `sam build`; depended on by `sam_api` and `lambda_client` |
 | `warm_functions` | `list[str]` | Function names to pre-warm. See [Warm containers](#warm-containers). |
 | `warm_api_routes` | `dict[str, str]` | Function name → API route path mapping for HTTP pre-warming. See [Warm containers](#warm-containers). |
 | `sam_lambda_endpoint` | `str` | Raw `start-lambda` URL (used internally by `lambda_client`) |
-| `localstack_container` | `LocalStackContainer` | Running LocalStack testcontainer |
+| `floci_container` | `FlociContainer` | Running Floci testcontainer |
 | `docker_network` | `str` | Name of the shared Docker bridge network |
 | `sam_api_extra_args` | `list[str]` | Extra CLI args appended to `sam local start-api` |
 | `sam_lambda_extra_args` | `list[str]` | Extra CLI args appended to `sam local start-lambda` |
 
-### LocalStack resource fixtures
+### Floci resource fixtures
 
 Ready-to-use fixtures for S3, DynamoDB, SQS, and SNS. Each service provides:
 - a **session-scoped boto3 client** (`s3_client`, `dynamodb_client`, `sqs_client`, `sns_client`)
@@ -137,19 +137,19 @@ All resources get a UUID suffix on creation to avoid collisions between parallel
 
 | Fixture | Scope | Type | Description |
 |---|---|---|---|
-| `s3_client` | session | `S3Client` | boto3 S3 client pointed at LocalStack |
-| `s3_resource` | session | `S3ServiceResource` | boto3 S3 resource pointed at LocalStack |
+| `s3_client` | session | `S3Client` | boto3 S3 client pointed at Floci |
+| `s3_resource` | session | `S3ServiceResource` | boto3 S3 resource pointed at Floci |
 | `make_s3_bucket` | session | `Callable[[str], S3Bucket]` | Call with a base name, returns a new `S3Bucket` |
 | `s3_bucket` | function | `S3Bucket` | Fresh bucket per test; deleted after |
-| `dynamodb_client` | session | `DynamoDBClient` | boto3 DynamoDB client pointed at LocalStack |
-| `dynamodb_resource` | session | `DynamoDBServiceResource` | boto3 DynamoDB resource (high-level) pointed at LocalStack |
+| `dynamodb_client` | session | `DynamoDBClient` | boto3 DynamoDB client pointed at Floci |
+| `dynamodb_resource` | session | `DynamoDBServiceResource` | boto3 DynamoDB resource (high-level) pointed at Floci |
 | `make_dynamodb_table` | session | `Callable[[str, dict[str, str]], DynamoTable]` | Call with name + key schema dict, returns a new `DynamoTable` |
 | `dynamodb_table` | function | `DynamoTable` | Fresh table per test (key: `{"id": "S"}`); deleted after |
-| `sqs_client` | session | `SQSClient` | boto3 SQS client pointed at LocalStack |
-| `sqs_resource` | session | `SQSServiceResource` | boto3 SQS resource pointed at LocalStack |
+| `sqs_client` | session | `SQSClient` | boto3 SQS client pointed at Floci |
+| `sqs_resource` | session | `SQSServiceResource` | boto3 SQS resource pointed at Floci |
 | `make_sqs_queue` | session | `Callable[[str], SqsQueue]` | Call with a base name, returns a new `SqsQueue` |
 | `sqs_queue` | function | `SqsQueue` | Fresh queue per test; deleted after |
-| `sns_client` | session | `SNSClient` | boto3 SNS client pointed at LocalStack |
+| `sns_client` | session | `SNSClient` | boto3 SNS client pointed at Floci |
 | `make_sns_topic` | session | `Callable[[str], SnsTopic]` | Call with a base name, returns a new `SnsTopic` |
 | `sns_topic` | function | `SnsTopic` | Fresh topic per test; deleted after |
 | `make_lambda_mock` | session | `Callable[..., LambdaMock]` | Wire a mock Lambda (spy bucket + env vars + response queue). See [Mocking other Lambdas](#mocking-other-lambdas-integration-tests). |
@@ -219,7 +219,7 @@ template          = "template.yaml"
 region            = "us-east-1"
 api_port          = 3000
 lambda_port       = 3001
-localstack_image  = "localstack/localstack:4"
+floci_image       = "floci/floci:latest"
 log_dir           = "logs"
 build_args        = []
 start_api_args    = []
@@ -233,11 +233,12 @@ architecture      = "arm64"              # auto-detected; override if needed
 |---|---|---|---|
 | `sam_image` | string | **required** | Docker image used for `sam build`. See [SAM image versions](#sam-image-versions). |
 | `template` | string | `"template.yaml"` | SAM template path, relative to `project_root`. |
-| `region` | string | `"us-east-1"` | AWS region passed to SAM and LocalStack. |
+| `region` | string | `"us-east-1"` | AWS region passed to SAM and Floci. |
 | `api_port` | int | `3000` | Host port mapped to `sam local start-api`. |
 | `lambda_port` | int | `3001` | Host port mapped to `sam local start-lambda`. |
-| `localstack_image` | string | `"localstack/localstack:4"` | LocalStack Docker image. See [LocalStack image versions](#localstack-image-versions). |
-| `log_dir` | string | `"logs"` | Directory (relative to `project_root`) for SAM and LocalStack logs and `env_vars.json`. |
+| `floci_image` | string | `"floci/floci:latest"` | Floci Docker image. See [Floci image versions](#floci-image-versions). |
+| `emulator_config` | dict | `{}` | Per-service Floci configuration (e.g. `s3 = { enabled = true }`). |
+| `log_dir` | string | `"logs"` | Directory (relative to `project_root`) for SAM and Floci logs and `env_vars.json`. |
 | `build_args` | list[string] | `[]` | Extra CLI args appended to `sam build`. |
 | `start_api_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-api`. |
 | `start_lambda_args` | list[string] | `[]` | Extra CLI args appended to `sam local start-lambda`. |
@@ -272,7 +273,7 @@ This is useful in monorepos where `pyproject.toml` is not at the project root.
 
 ### Inject environment variables into Lambda
 
-`sam_env_vars` defaults to a dict with AWS credentials and endpoint pointing at LocalStack. Extend it with your own values:
+`sam_env_vars` defaults to a dict with AWS credentials and endpoint pointing at Floci. Extend it with your own values:
 
 ```python
 # conftest.py
@@ -309,7 +310,7 @@ sam_env_vars["MyFunction"] = {"SECRET": "test-secret"}
 >           MY_TABLE: ""
 > ```
 
-### Use LocalStack in tests
+### Use Floci in tests
 
 samstack ships built-in fixtures for S3, DynamoDB, SQS, and SNS. Use the function-scoped fixtures for isolated per-test resources, or the session-scoped factories to share resources across tests.
 
@@ -479,21 +480,21 @@ samstack injects **per-service** endpoint env vars (boto3 ≥ 1.28 auto-picks th
 
 | Variable | Points at |
 |---|---|
-| `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_SQS`, `AWS_ENDPOINT_URL_SNS` | LocalStack (`http://localstack:4566`) |
-| `AWS_ENDPOINT_URL_LAMBDA` | SAM `start-lambda` (`http://sam-lambda:{lambda_port}`) — so Lambda-to-Lambda invokes stay in SAM instead of leaking into LocalStack |
+| `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_SQS`, `AWS_ENDPOINT_URL_SNS` | Floci (`http://floci:4566`) |
+| `AWS_ENDPOINT_URL_LAMBDA` | SAM `start-lambda` (`http://sam-lambda:{lambda_port}`) — so Lambda-to-Lambda invokes stay in SAM instead of leaking into Floci |
 
 ```python
 import boto3
 
 def handler(event, context):
-    s3 = boto3.client("s3")        # auto-routed to LocalStack
+    s3 = boto3.client("s3")        # auto-routed to Floci
     lam = boto3.client("lambda")   # auto-routed to sam local start-lambda
     # ...
 ```
 
 In production those env vars are unset, so boto3 hits real AWS with no code changes.
 
-> **Breaking change (v0.3.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to LocalStack. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
+> **Breaking change (v0.3.0):** previously samstack set a global `AWS_ENDPOINT_URL` that routed **all** services — including Lambda — to Floci. Lambda-to-Lambda invokes now correctly reach the SAM local-lambda runtime. If your production code references `AWS_ENDPOINT_URL`, migrate to the per-service vars or drop the `endpoint_url` kwarg entirely.
 
 ---
 
@@ -684,34 +685,32 @@ Full list: [gallery.ecr.aws/sam](https://gallery.ecr.aws/sam).
 
 ---
 
-## LocalStack image versions
+## Floci image versions
 
-The default is `localstack/localstack:4`. To pin a specific version or use LocalStack Pro, set `localstack_image` in `[tool.samstack]`:
+The default is `floci/floci:latest`. To pin a specific version, set `floci_image` in `[tool.samstack]`:
 
 ```toml
 [tool.samstack]
-sam_image        = "public.ecr.aws/sam/build-python3.13"
-localstack_image = "localstack/localstack:3"   # pin to v3
+sam_image   = "public.ecr.aws/sam/build-python3.13"
+floci_image = "floci/floci:1.0.0"   # pin to a specific release
 ```
 
-| Use case | `localstack_image` |
+| Use case | `floci_image` |
 |---|---|
-| Latest v4 (default) | `localstack/localstack:4` |
-| Specific patch | `localstack/localstack:4.3.0` |
-| Pin to v3 | `localstack/localstack:3` |
-| LocalStack Pro | `localstack/localstack-pro:4` |
+| Latest (default) | `floci/floci:latest` |
+| Pinned release | `floci/floci:1.0.0` |
 
-Full list: [hub.docker.com/r/localstack/localstack/tags](https://hub.docker.com/r/localstack/localstack/tags).
+Full list: [hub.docker.com/r/floci/floci/tags](https://hub.docker.com/r/floci/floci/tags).
 
 ---
 
 ## Logs
 
-SAM and LocalStack output is streamed to `{log_dir}/` (default `logs/`):
+SAM and Floci output is streamed to `{log_dir}/` (default `logs/`):
 
 ```
 logs/
-├── localstack.log     # LocalStack container stdout + stderr
+├── floci.log          # Floci container stdout + stderr
 ├── start-api.log      # sam local start-api stdout + Lambda invocation logs
 ├── start-lambda.log   # sam local start-lambda stdout
 └── env_vars.json      # generated env vars file passed to SAM
