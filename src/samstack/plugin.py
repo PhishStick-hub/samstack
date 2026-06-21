@@ -14,11 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from samstack.fixtures.localstack import (
+from samstack.fixtures.floci import (
     docker_network,
     docker_network_name,
-    localstack_container,
-    localstack_endpoint,
+    floci_container,
+    floci_endpoint,
 )
 from samstack.fixtures.resources import (
     dynamodb_client,
@@ -53,9 +53,9 @@ __all__ = [
     "dynamodb_client",
     "dynamodb_resource",
     "dynamodb_table",
+    "floci_container",
+    "floci_endpoint",
     "lambda_client",
-    "localstack_container",
-    "localstack_endpoint",
     "make_dynamodb_table",
     "make_lambda_mock",
     "make_s3_bucket",

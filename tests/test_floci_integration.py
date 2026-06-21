@@ -1,4 +1,4 @@
-"""Lambda interacts with LocalStack S3 via shared Docker network."""
+"""Lambda interacts with Floci S3 via shared Docker network."""
 
 from __future__ import annotations
 

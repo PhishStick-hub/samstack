@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import samstack.fixtures.localstack as loc
+import samstack.fixtures.floci as loc
 from testcontainers.core.labels import LABEL_SESSION_ID, SESSION_ID
 
 # pytest fixtures are typed as FixtureFunctionDefinition by ty, but

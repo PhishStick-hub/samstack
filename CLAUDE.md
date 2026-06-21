@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-`samstack` is a pytest plugin library (registered via `pytest11` entry point) that provides session-scoped fixtures for testing AWS Lambda functions locally. It runs SAM CLI and Lambda containers entirely inside Docker — no host `sam` install required. LocalStack provides the local AWS backend.
+`samstack` is a pytest plugin library (registered via `pytest11` entry point) that provides session-scoped fixtures for testing AWS Lambda functions locally. It runs SAM CLI and Lambda containers entirely inside Docker — no host `sam` install required. Floci provides the local AWS backend.
 
 ## Commands
 
@@ -43,11 +43,11 @@ uv run pytest tests/ -v --timeout=300
 
 `ty` does **not** support `# type: ignore[...]` (mypy-only). Prefer refactoring over escape hatches; avoid `cast()` as a generic workaround. In unit test files, annotate mock parameters as `MagicMock` — annotating them as the real boto3 type causes ty to flag missing mock attributes.
 
-### LocalStack resource fixtures
+### Floci resource fixtures
 
 `src/samstack/fixtures/resources.py` provides 15 fixtures for S3, DynamoDB, SQS, and SNS. S3, DynamoDB, and SQS each have four fixtures; SNS has three (no boto3 resource API):
 
-- `{service}_client` — session-scoped boto3 low-level client pointed at LocalStack
+- `{service}_client` — session-scoped boto3 low-level client pointed at Floci
 - `{service}_resource` — session-scoped boto3 resource object (S3, DynamoDB, SQS only; SNS has no resource API)
 - `make_{service}_{resource_type}` — session-scoped factory; call it with a name (and `keys` dict for DynamoDB) to get a wrapper instance with UUID suffix; all resources deleted at session teardown
 - `{service}_{resource_type}` — function-scoped convenience fixture; one fresh resource per test, deleted after
@@ -68,47 +68,47 @@ All fixtures are `scope="session"` unless noted. The dependency graph is:
 samstack_settings            (no deps)
 docker_network               (no deps)
 sam_env_vars                 → samstack_settings
-localstack_container         → samstack_settings, docker_network
-localstack_endpoint          → localstack_container
+floci_container              → samstack_settings, docker_network
+floci_endpoint               → floci_container
 sam_build                    → samstack_settings, sam_env_vars
 sam_api                      → samstack_settings, sam_build, docker_network, sam_api_extra_args
 sam_lambda_endpoint          → samstack_settings, sam_build, docker_network, sam_lambda_extra_args
 lambda_client                → samstack_settings, sam_lambda_endpoint
 
-# Resource fixtures (all depend on localstack_endpoint + samstack_settings)
-s3_client                    → localstack_endpoint, samstack_settings
-s3_resource                  → localstack_endpoint, samstack_settings
+# Resource fixtures (all depend on floci_endpoint + samstack_settings)
+s3_client                    → floci_endpoint, samstack_settings
+s3_resource                  → floci_endpoint, samstack_settings
 make_s3_bucket            → s3_client
 s3_bucket          [func]    → s3_client
-dynamodb_client              → localstack_endpoint, samstack_settings
-dynamodb_resource            → localstack_endpoint, samstack_settings
+dynamodb_client              → floci_endpoint, samstack_settings
+dynamodb_resource            → floci_endpoint, samstack_settings
 make_dynamodb_table       → dynamodb_client, dynamodb_resource
 dynamodb_table     [func]    → dynamodb_client, dynamodb_resource
-sqs_client                   → localstack_endpoint, samstack_settings
-sqs_resource                 → localstack_endpoint, samstack_settings
+sqs_client                   → floci_endpoint, samstack_settings
+sqs_resource                 → floci_endpoint, samstack_settings
 make_sqs_queue            → sqs_client
 sqs_queue          [func]    → sqs_client
-sns_client                   → localstack_endpoint, samstack_settings
+sns_client                   → floci_endpoint, samstack_settings
 make_sns_topic            → sns_client
 sns_topic          [func]    → sns_client
 ```
 
-`sam_build` intentionally does not depend on `localstack_container` — the build step doesn't need LocalStack running. The network dependency is implicit: `sam_api` and `sam_lambda_endpoint` bring in `docker_network`, which ensures network exists before SAM containers start.
+`sam_build` intentionally does not depend on `floci_container` — the build step doesn't need Floci running. The network dependency is implicit: `sam_api` and `sam_lambda_endpoint` bring in `docker_network`, which ensures network exists before SAM containers start.
 
 ### How Docker networking works
 
 1. `docker_network` creates a named Docker bridge network (`samstack-{uuid8}`)
-2. `localstack_container` starts LocalStack, then connects it to that network with alias `localstack`
+2. `floci_container` starts Floci, then connects it to that network with alias `floci`
 3. SAM containers (start-api, start-lambda) are connected **after** `.start()` via `_connect_container_with_alias` (see `fixtures/_sam_container.py`) with DNS aliases `sam-api` / `sam-lambda`. Aliases matter: Lambda A running inside a SAM-spawned container resolves `sam-lambda` reliably on Linux, where `host.docker.internal` is not available by default for SAM-spawned Lambda containers.
-4. Lambda code inside SAM reaches LocalStack at `http://localstack:4566` and the local Lambda runtime at `http://sam-lambda:3001` — injected as per-service `AWS_ENDPOINT_URL_<SERVICE>` variables (boto3 ≥ 1.28 picks these up automatically).
+4. Lambda code inside SAM reaches Floci at `http://floci:4566` and the local Lambda runtime at `http://sam-lambda:3001` — injected as per-service `AWS_ENDPOINT_URL_<SERVICE>` variables (boto3 ≥ 1.28 picks these up automatically).
 
 ### Per-service endpoint env vars (breaking change in 0.3.0)
 
 `sam_env_vars` no longer emits a global `AWS_ENDPOINT_URL`. It sets:
-- `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_SQS`, `AWS_ENDPOINT_URL_SNS` → LocalStack
+- `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_DYNAMODB`, `AWS_ENDPOINT_URL_SQS`, `AWS_ENDPOINT_URL_SNS` → Floci
 - `AWS_ENDPOINT_URL_LAMBDA` → `http://sam-lambda:{settings.lambda_port}`
 
-This lets Lambda-to-Lambda `boto3.client("lambda").invoke(...)` calls reach the SAM local-lambda runtime instead of LocalStack — a prerequisite for the `samstack.mock` use case. Lambda code consuming these env vars needs no `endpoint_url=` kwarg: boto3 auto-reads them.
+This lets Lambda-to-Lambda `boto3.client("lambda").invoke(...)` calls reach the SAM local-lambda runtime instead of Floci — a prerequisite for the `samstack.mock` use case. Lambda code consuming these env vars needs no `endpoint_url=` kwarg: boto3 auto-reads them.
 
 **SAM env-var propagation gotcha**: `sam local` only delivers env vars to a Lambda container that are **declared on the function** (`Environment.Variables` in the template, either on the function directly or on `Globals.Function`). `--env-vars` JSON (both `Parameters` and per-function sections) is treated as *overrides* for already-declared keys — **undeclared keys are silently dropped**. Templates that want to receive `AWS_ENDPOINT_URL_S3`, `AWS_ENDPOINT_URL_LAMBDA`, `MOCK_SPY_BUCKET`, etc. at runtime must declare them (empty string is fine) in `Environment.Variables`. See `tests/fixtures/hello_world/template.yaml` and `tests/fixtures/multi_lambda/template.test.yaml` for the pattern.
 
@@ -123,7 +123,7 @@ The project is mounted at its **real host path** (not `/var/task`) so that Lambd
 Default CLI flags on both commands: `--skip-pull-image --warm-containers LAZY --host 0.0.0.0 --port {port} --env-vars {host_path}/{log_dir}/env_vars.json --docker-network {network} --container-host host.docker.internal --container-host-interface 0.0.0.0`
 
 - `--host 0.0.0.0` — bind Flask inside the container on all interfaces so Docker port-mapping works
-- `--docker-network` — puts Lambda containers on the same network so they can reach LocalStack
+- `--docker-network` — puts Lambda containers on the same network so they can reach Floci
 - `--container-host host.docker.internal` — tells SAM to reach Lambda containers via Docker Desktop's host gateway (required when SAM runs inside Docker on macOS)
 - `--container-host-interface 0.0.0.0` — binds Lambda container ports on all interfaces
 
@@ -145,7 +145,7 @@ These fixtures exist specifically to be overridden in child `conftest.py`:
 - `samstack_settings` — swap the entire config
 - `sam_env_vars` — extend or replace Lambda runtime env vars (dict is mutable; mutate it directly as shown in `tests/conftest.py`)
 - `sam_api_extra_args` / `sam_lambda_extra_args` — append extra CLI flags
-- `localstack_container`, `docker_network`, `localstack_endpoint` — swap infrastructure
+- `floci_container`, `docker_network`, `floci_endpoint` — swap infrastructure
 
 ### Test fixture Lambdas
 
@@ -181,7 +181,7 @@ User pattern: session fixture calls `make_lambda_mock(...)`, function-scoped wra
 
 `fixtures/_sam_container.py` — shared helpers for `sam_api` and `sam_lambda`: `build_sam_args()` (CLI arg list), `create_sam_container()` (container builder — intentionally does **not** pre-attach to `docker_network`; caller attaches with an alias after `.start()`), `_connect_container_with_alias()` / `_disconnect_container_from_network()` (network alias wiring — `localstack.py` imports these; they are the single source of truth for container network management), `_run_sam_service()` (context manager — starts container, attaches with alias, streams logs, waits for readiness, yields endpoint URL, disconnects + stops on exit), `DOCKER_SOCKET` constant. The `network_alias` parameter is mandatory on `_run_sam_service` — pass `"sam-api"` or `"sam-lambda"` to match the convention other containers rely on.
 
-`_constants.py` — internal constants shared across fixtures: `LOCALSTACK_ACCESS_KEY` / `LOCALSTACK_SECRET_KEY` (both `"test"` — LocalStack's documented default). Import from here; do not re-define per-module.
+`_constants.py` — internal constants shared across fixtures: `FLOCI_ACCESS_KEY` / `FLOCI_SECRET_KEY` (both `"test"` — Floci's documented default). Import from here; do not re-define per-module.
 
 Docker SDK is imported at module level in `_docker.py` (the dedicated Docker utilities module).
 

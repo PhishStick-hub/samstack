@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
+from samstack._constants import FLOCI_ACCESS_KEY, FLOCI_SECRET_KEY
 from samstack._errors import SamBuildError
 from samstack._docker import run_one_shot_container
 from samstack.fixtures._sam_container import DOCKER_SOCKET, _is_ci
@@ -32,10 +32,10 @@ def sam_env_vars(samstack_settings: SamStackSettings) -> dict[str, dict[str, str
     Routes each AWS service to the correct local backend via per-service
     ``AWS_ENDPOINT_URL_<SERVICE>`` variables (boto3 >= 1.28):
 
-    - S3, DynamoDB, SQS, SNS → LocalStack (``http://localstack:4566``)
+    - S3, DynamoDB, SQS, SNS → Floci (``http://floci:4566``)
     - Lambda → SAM local start-lambda (``http://sam-lambda:3001``) — so Lambda
       code that invokes another Lambda via ``boto3.client('lambda')`` hits the
-      SAM runtime, not LocalStack.
+      SAM runtime, not Floci.
 
     Override in your conftest.py to add function-specific vars:
 
@@ -46,14 +46,14 @@ def sam_env_vars(samstack_settings: SamStackSettings) -> dict[str, dict[str, str
     """
     return {
         "Parameters": {
-            "AWS_ENDPOINT_URL_S3": "http://localstack:4566",
-            "AWS_ENDPOINT_URL_DYNAMODB": "http://localstack:4566",
-            "AWS_ENDPOINT_URL_SQS": "http://localstack:4566",
-            "AWS_ENDPOINT_URL_SNS": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_S3": "http://floci:4566",
+            "AWS_ENDPOINT_URL_DYNAMODB": "http://floci:4566",
+            "AWS_ENDPOINT_URL_SQS": "http://floci:4566",
+            "AWS_ENDPOINT_URL_SNS": "http://floci:4566",
             "AWS_ENDPOINT_URL_LAMBDA": f"http://sam-lambda:{samstack_settings.lambda_port}",
             "AWS_DEFAULT_REGION": samstack_settings.region,
-            "AWS_ACCESS_KEY_ID": LOCALSTACK_ACCESS_KEY,
-            "AWS_SECRET_ACCESS_KEY": LOCALSTACK_SECRET_KEY,
+            "AWS_ACCESS_KEY_ID": FLOCI_ACCESS_KEY,
+            "AWS_SECRET_ACCESS_KEY": FLOCI_SECRET_KEY,
         }
     }
 

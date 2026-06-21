@@ -1,5 +1,5 @@
 """
-LocalStack resource fixtures for testing AWS services.
+Floci resource fixtures for testing AWS services.
 
 Provides session-scoped boto3 clients, session-scoped factory fixtures,
 and function-scoped convenience fixtures for S3, DynamoDB, SQS, and SNS.
@@ -16,7 +16,7 @@ from uuid import uuid4
 import boto3
 import pytest
 
-from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
+from samstack._constants import FLOCI_ACCESS_KEY, FLOCI_SECRET_KEY
 from samstack.resources.dynamodb import DynamoTable
 from samstack.resources.s3 import S3Bucket
 from samstack.resources.sns import SnsTopic
@@ -50,25 +50,25 @@ if TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 def s3_client(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> S3Client:
-    """Session-scoped boto3 S3 client pointed at LocalStack."""
+    """Session-scoped boto3 S3 client pointed at Floci."""
     return boto3.client(
         "s3",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 
 @pytest.fixture(scope="session")
 def s3_resource(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> S3ServiceResource:
-    """Session-scoped boto3 S3 resource pointed at LocalStack.
+    """Session-scoped boto3 S3 resource pointed at Floci.
 
     Use to construct Object resource instances:
 
@@ -76,10 +76,10 @@ def s3_resource(
     """
     return boto3.resource(
         "s3",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 
@@ -145,31 +145,31 @@ def s3_bucket(s3_client: S3Client) -> Iterator[S3Bucket]:
 
 @pytest.fixture(scope="session")
 def dynamodb_client(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> DynamoDBClient:
-    """Session-scoped boto3 DynamoDB low-level client pointed at LocalStack."""
+    """Session-scoped boto3 DynamoDB low-level client pointed at Floci."""
     return boto3.client(
         "dynamodb",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 
 @pytest.fixture(scope="session")
 def dynamodb_resource(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> DynamoDBServiceResource:
     """Session-scoped boto3 DynamoDB resource (high-level) for table wrappers."""
     return boto3.resource(
         "dynamodb",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 
@@ -260,25 +260,25 @@ def dynamodb_table(
 
 @pytest.fixture(scope="session")
 def sqs_client(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> SQSClient:
-    """Session-scoped boto3 SQS client pointed at LocalStack."""
+    """Session-scoped boto3 SQS client pointed at Floci."""
     return boto3.client(
         "sqs",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 
 @pytest.fixture(scope="session")
 def sqs_resource(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> SQSServiceResource:
-    """Session-scoped boto3 SQS resource pointed at LocalStack.
+    """Session-scoped boto3 SQS resource pointed at Floci.
 
     Use to construct Queue resource instances:
 
@@ -286,10 +286,10 @@ def sqs_resource(
     """
     return boto3.resource(
         "sqs",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 
@@ -351,16 +351,16 @@ def sqs_queue(sqs_client: SQSClient) -> Iterator[SqsQueue]:
 
 @pytest.fixture(scope="session")
 def sns_client(
-    localstack_endpoint: str,
+    floci_endpoint: str,
     samstack_settings: SamStackSettings,
 ) -> SNSClient:
-    """Session-scoped boto3 SNS client pointed at LocalStack."""
+    """Session-scoped boto3 SNS client pointed at Floci."""
     return boto3.client(
         "sns",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
 
 

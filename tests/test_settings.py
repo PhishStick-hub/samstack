@@ -16,7 +16,7 @@ def test_defaults_applied(tmp_path: Path) -> None:
     assert settings.region == "us-east-1"
     assert settings.api_port == 3000
     assert settings.lambda_port == 3001
-    assert settings.localstack_image == "localstack/localstack:4"
+    assert settings.floci_image == "floci/floci:latest"
     assert settings.log_dir == "logs"
     assert settings.build_args == []
     assert settings.add_gitignore is True

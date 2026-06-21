@@ -465,7 +465,7 @@ dependencies = [
     { name = "boto3" },
     { name = "docker" },
     { name = "pytest" },
-    { name = "testcontainers", extra = ["localstack"] },
+    { name = "testcontainers-floci" },
 ]
 
 [package.dev-dependencies]
@@ -484,7 +484,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.35.0" },
     { name = "docker", specifier = ">=7.0.0" },
     { name = "pytest", specifier = ">=8.0.0" },
-    { name = "testcontainers", extras = ["localstack"], specifier = ">=4.10.0" },
+    { name = "testcontainers-floci" },
 ]
 
 [package.metadata.requires-dev]
@@ -523,9 +523,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/13/2d/26b8b30067d94339afee62c3edc9b803a6eb9332f521ba77d8aaab5de873/testcontainers-4.14.2-py3-none-any.whl", hash = "sha256:0d0522c3cd8f8d9627cda41f7a6b51b639fa57bdc492923c045117933c668d68", size = 125712, upload-time = "2026-03-18T05:19:15.29Z" },
 ]
 
-[package.optional-dependencies]
-localstack = [
-    { name = "boto3" },
+[[package]]
+name = "testcontainers-floci"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "testcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/f0/d7869f27f2c95de45542ea0e378b0d4ee0da2e53faf99139e7a2d01a4989/testcontainers_floci-0.1.1.tar.gz", hash = "sha256:a3ade7e95bfcac042f748598209445b9a209d7ffe53c472595a45ff535d944a9", size = 10167, upload-time = "2026-05-02T02:57:25.208Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/42/8f/7f1461a2dcc7a97dcb9676a1e1226eb15b9b17d6fe95d37995cc4ad5890d/testcontainers_floci-0.1.1-py3-none-any.whl", hash = "sha256:b73e010238c3010237d7ee61c45dd17686571df5e774fb78a8d56456a7a38530", size = 8843, upload-time = "2026-05-02T02:57:23.757Z" },
 ]
 
 [[package]]

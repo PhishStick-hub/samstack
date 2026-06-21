@@ -29,7 +29,8 @@ class SamStackSettings:
     region: str = "us-east-1"
     api_port: int = 3000
     lambda_port: int = 3001
-    localstack_image: str = "localstack/localstack:4"
+    floci_image: str = "floci/floci:latest"
+    emulator_config: dict[str, dict[str, Any]] = field(default_factory=dict)
     log_dir: str = "logs"
     build_args: list[str] = field(default_factory=list)
     add_gitignore: bool = True

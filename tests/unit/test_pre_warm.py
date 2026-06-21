@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.config import Config
 
-from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
+from samstack._constants import FLOCI_ACCESS_KEY, FLOCI_SECRET_KEY
 from samstack._errors import SamStartupError
 from samstack.fixtures.sam_lambda import _pre_warm_functions
 
@@ -93,8 +93,8 @@ def test_pre_warm_boto3_client_config():
     call_kwargs = mock_client_fn.call_args.kwargs
     assert call_kwargs["endpoint_url"] == "http://127.0.0.1:3001"
     assert call_kwargs["region_name"] == "us-east-1"
-    assert call_kwargs["aws_access_key_id"] == LOCALSTACK_ACCESS_KEY
-    assert call_kwargs["aws_secret_access_key"] == LOCALSTACK_SECRET_KEY
+    assert call_kwargs["aws_access_key_id"] == FLOCI_ACCESS_KEY
+    assert call_kwargs["aws_secret_access_key"] == FLOCI_SECRET_KEY
     cfg = call_kwargs["config"]
     assert isinstance(cfg, Config)
     assert cfg.read_timeout == 120

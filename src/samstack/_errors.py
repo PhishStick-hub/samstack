@@ -21,12 +21,12 @@ class SamStartupError(SamStackError):
         )
 
 
-class LocalStackStartupError(SamStackError):
-    """LocalStack container did not become healthy."""
+class FlociStartupError(SamStackError):
+    """Floci container did not become healthy."""
 
     def __init__(self, log_tail: str) -> None:
         self.log_tail = log_tail
-        super().__init__(f"LocalStack did not become healthy.\n\nLog tail:\n{log_tail}")
+        super().__init__(f"Floci did not become healthy.\n\nLog tail:\n{log_tail}")
 
 
 class DockerNetworkError(SamStackError):

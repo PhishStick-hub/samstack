@@ -11,7 +11,7 @@ from botocore.config import Config
 if TYPE_CHECKING:
     from mypy_boto3_lambda import LambdaClient
 
-from samstack._constants import LOCALSTACK_ACCESS_KEY, LOCALSTACK_SECRET_KEY
+from samstack._constants import FLOCI_ACCESS_KEY, FLOCI_SECRET_KEY
 from samstack._errors import SamStartupError
 from samstack.fixtures._sam_container import SamServiceConfig, start_sam
 from samstack.settings import SamStackSettings
@@ -41,8 +41,8 @@ def _pre_warm_functions(
         "lambda",
         endpoint_url=endpoint,
         region_name=region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
         config=Config(read_timeout=120, connect_timeout=120),
     )
     for func_name in function_names:
@@ -129,6 +129,6 @@ def lambda_client(
         "lambda",
         endpoint_url=sam_lambda_endpoint,
         region_name=samstack_settings.region,
-        aws_access_key_id=LOCALSTACK_ACCESS_KEY,
-        aws_secret_access_key=LOCALSTACK_SECRET_KEY,
+        aws_access_key_id=FLOCI_ACCESS_KEY,
+        aws_secret_access_key=FLOCI_SECRET_KEY,
     )
