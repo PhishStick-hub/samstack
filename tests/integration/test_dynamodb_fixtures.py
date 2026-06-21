@@ -1,4 +1,4 @@
-"""Integration tests for DynamoDB resource fixtures against real LocalStack."""
+"""Integration tests for DynamoDB resource fixtures against real Floci."""
 
 from __future__ import annotations
 

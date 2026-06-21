@@ -8,12 +8,12 @@ from uuid import uuid4
 
 import docker as docker_sdk
 import pytest
+from floci import FlociContainer
 from testcontainers.core.config import testcontainers_config
 from testcontainers.core.container import Reaper
 from testcontainers.core.labels import LABEL_SESSION_ID, SESSION_ID
-from testcontainers.localstack import LocalStackContainer
 
-from samstack._errors import DockerNetworkError, LocalStackStartupError
+from samstack._errors import DockerNetworkError, FlociStartupError
 from samstack._process import stream_logs_to_file
 from samstack.fixtures._sam_container import (
     DOCKER_SOCKET,
@@ -70,7 +70,7 @@ def docker_network_name() -> str:
 
 @pytest.fixture(scope="session")
 def docker_network(docker_network_name: str) -> Iterator[str]:
-    """Create a Docker bridge network shared by LocalStack and SAM containers."""
+    """Create a Docker bridge network shared by Floci and SAM containers."""
     client = docker_sdk.from_env()
     try:
         network = client.networks.create(
@@ -91,17 +91,55 @@ def docker_network(docker_network_name: str) -> Iterator[str]:
         _teardown_network(network, docker_network_name)
 
 
-# — LocalStack container -------------------------------------------------------
+# — Service config dispatch ----------------------------------------------------
+
+
+def _apply_emulator_configs(
+    container: FlociContainer,
+    emulator_config: dict[str, dict[str, object]],
+) -> None:
+    """Apply service-specific configuration from ``emulator_config`` to the container."""
+    if not emulator_config:
+        return
+
+    try:
+        from floci.config import (
+            DynamoDbConfig,
+            S3Config,
+            SnsConfig,
+            SqsConfig,
+        )
+    except ImportError:
+        return
+
+    CONFIG_DISPATCH: dict[str, tuple[str, type]] = {
+        "s3": ("with_s3_config", S3Config),
+        "sqs": ("with_sqs_config", SqsConfig),
+        "sns": ("with_sns_config", SnsConfig),
+        "dynamodb": ("with_dynamo_db_config", DynamoDbConfig),
+    }
+
+    for service, kwargs in emulator_config.items():
+        entry = CONFIG_DISPATCH.get(service)
+        if entry is None:
+            continue
+        method_name, config_cls = entry
+        config = config_cls(**kwargs)
+        getattr(container, method_name)(config)
+
+
+# — Floci container -----------------------------------------------------------
 
 
 @pytest.fixture(scope="session")
-def localstack_container(
+def floci_container(
     samstack_settings: SamStackSettings,
     docker_network: str,
-) -> Iterator[LocalStackContainer]:
-    """Start LocalStack and connect it to the shared Docker network."""
-    container = LocalStackContainer(image=samstack_settings.localstack_image)
+) -> Iterator[FlociContainer]:
+    """Start Floci and connect it to the shared Docker network."""
+    container = FlociContainer(image=samstack_settings.floci_image)
     container.with_volume_mapping(DOCKER_SOCKET, DOCKER_SOCKET, "rw")
+    _apply_emulator_configs(container, samstack_settings.emulator_config)
     container.start()
 
     log_dir = samstack_settings.project_root / samstack_settings.log_dir
@@ -109,12 +147,12 @@ def localstack_container(
     inner = container.get_wrapped_container()
     if inner is None:
         container.stop()
-        raise LocalStackStartupError(log_tail="container exited before start")
-    stream_logs_to_file(inner, log_dir / "localstack.log")
+        raise FlociStartupError(log_tail="container exited before start")
+    stream_logs_to_file(inner, log_dir / "floci.log")
 
     client = docker_sdk.from_env()
     try:
-        _connect_container_with_alias(client, docker_network, container, "localstack")
+        _connect_container_with_alias(client, docker_network, container, "floci")
     except Exception as exc:
         container.stop()
         raise DockerNetworkError(name=docker_network, reason=str(exc)) from exc
@@ -126,13 +164,13 @@ def localstack_container(
             _disconnect_container_from_network(client, docker_network, container)
         except Exception as exc:
             warnings.warn(
-                f"samstack: failed to disconnect LocalStack from network '{docker_network}': {exc}",
+                f"samstack: failed to disconnect Floci from network '{docker_network}': {exc}",
                 stacklevel=2,
             )
         container.stop()
 
 
 @pytest.fixture(scope="session")
-def localstack_endpoint(localstack_container: LocalStackContainer) -> str:
-    """Return the host-accessible LocalStack URL for use in boto3 clients."""
-    return localstack_container.get_url()
+def floci_endpoint(floci_container: FlociContainer) -> str:
+    """Return the host-accessible Floci URL for use in boto3 clients."""
+    return floci_container.get_endpoint()

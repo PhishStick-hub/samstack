@@ -1,6 +1,6 @@
 from samstack._errors import (
     DockerNetworkError,
-    LocalStackStartupError,
+    FlociStartupError,
     SamBuildError,
     SamStackError,
     SamStartupError,
@@ -9,7 +9,7 @@ from samstack.settings import SamStackSettings, load_settings
 
 __all__ = [
     "DockerNetworkError",
-    "LocalStackStartupError",
+    "FlociStartupError",
     "SamBuildError",
     "SamStackError",
     "SamStartupError",

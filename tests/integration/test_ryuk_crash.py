@@ -47,7 +47,7 @@ pytestmark = pytest.mark.skipif(
 def _write_subprocess_session(session_dir: Path) -> None:
     """Write a minimal pytest session that creates docker_network and stalls.
 
-    Only docker_network is exercised — no SAM, no LocalStack, no containers
+    Only docker_network is exercised — no SAM, no Floci, no containers
     on the network. This ensures the network has no attached containers when
     Ryuk attempts to remove it (Docker refuses network removal when containers
     are still attached).

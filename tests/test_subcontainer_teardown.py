@@ -122,7 +122,7 @@ class TestSubcontainerNormalTeardown:
 
         assert exit_code == 0, (
             f"Subprocess pytest session failed with exit code {exit_code}. "
-            "The SAM session did not complete normally — check that LocalStack "
+            "The SAM session did not complete normally — check that Floci "
             "is accessible and the hello_world fixture builds correctly."
         )
 

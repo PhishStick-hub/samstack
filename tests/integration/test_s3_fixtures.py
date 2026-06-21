@@ -1,4 +1,4 @@
-"""Integration tests for S3 resource fixtures against real LocalStack."""
+"""Integration tests for S3 resource fixtures against real Floci."""
 
 from __future__ import annotations
 

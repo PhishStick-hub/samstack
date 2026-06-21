@@ -48,16 +48,16 @@ def samstack_settings() -> SamStackSettings:
 
 @pytest.fixture(scope="session")
 def sam_env_vars(sam_env_vars: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
-    """Extend default env vars with TEST_BUCKET for localstack integration test."""
+    """Extend default env vars with TEST_BUCKET for floci integration test."""
     sam_env_vars["Parameters"]["TEST_BUCKET"] = INTEGRATION_BUCKET
     return sam_env_vars
 
 
 @pytest.fixture(scope="session")
-def s3_client(localstack_endpoint: str) -> S3Client:
+def s3_client(floci_endpoint: str) -> S3Client:
     return boto3.client(
         "s3",
-        endpoint_url=localstack_endpoint,
+        endpoint_url=floci_endpoint,
         region_name="us-east-1",
         aws_access_key_id="test",
         aws_secret_access_key="test",

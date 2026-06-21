@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from samstack._errors import (
     DockerNetworkError,
-    LocalStackStartupError,
+    FlociStartupError,
     SamBuildError,
     SamStackError,
     SamStartupError,
@@ -22,10 +22,10 @@ def test_sam_startup_error_contains_port_and_log() -> None:
     assert "last 50 lines" in str(err)
 
 
-def test_localstack_startup_error_is_sam_stack_error() -> None:
-    err = LocalStackStartupError(log_tail="ls crashed")
+def test_floci_startup_error_is_sam_stack_error() -> None:
+    err = FlociStartupError(log_tail="floci crashed")
     assert isinstance(err, SamStackError)
-    assert "ls crashed" in str(err)
+    assert "floci crashed" in str(err)
 
 
 def test_docker_network_error_is_sam_stack_error() -> None:

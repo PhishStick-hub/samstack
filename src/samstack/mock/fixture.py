@@ -119,7 +119,7 @@ def make_lambda_mock(
         sam_env_vars[function_name] = {
             "MOCK_SPY_BUCKET": spy_bucket.name,
             "MOCK_FUNCTION_NAME": alias,
-            "AWS_ENDPOINT_URL_S3": "http://localstack:4566",
+            "AWS_ENDPOINT_URL_S3": "http://floci:4566",
         }
         mock = LambdaMock(name=alias, bucket=spy_bucket)
         created.append(mock)

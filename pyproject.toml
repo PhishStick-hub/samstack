@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "samstack"
 version = "3.2.1"
-description = "Pytest fixtures for testing AWS SAM Lambdas locally with LocalStack"
+description = "Pytest fixtures for testing AWS SAM Lambdas locally with Floci"
 readme = "README.md"
 authors = [
     { name = "Ivan Shcherbenko", email = "ivan_shcherbenko@outlook.com" }
 ]
 license = "MIT"
 license-files = ["LICENSE"]
-keywords = ["aws", "sam", "localstack", "pytest", "lambda", "testing", "fixtures"]
+keywords = ["aws", "sam", "floci", "pytest", "lambda", "testing", "fixtures"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,7 +24,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "testcontainers[localstack]>=4.10.0",
+    "testcontainers-floci",
     "docker>=7.0.0",
     "boto3>=1.35.0",
     "pytest>=8.0.0",

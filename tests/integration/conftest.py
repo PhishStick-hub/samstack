@@ -1,6 +1,6 @@
 """
-Shared fixtures for integration tests against a real LocalStack instance.
-SAM build/api/lambda fixtures are NOT needed here — only LocalStack infrastructure.
+Shared fixtures for integration tests against a real Floci instance.
+SAM build/api/lambda fixtures are NOT needed here — only Floci infrastructure.
 """
 
 from __future__ import annotations
